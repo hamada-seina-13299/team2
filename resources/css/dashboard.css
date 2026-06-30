@@ -1,0 +1,281 @@
+@charset "UTF-8";
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #f4f7f6;
+    color: #333333;
+    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.wrapper {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* 🧭 左側：コンパクトアイコンサイドバー */
+.sidebar {
+    width: 60px;
+    background-color: #ffffff;
+    border-right: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 20px;
+    gap: 20px;
+}
+.sidebar-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    font-size: 18px;
+    text-decoration: none;
+    border-radius: 8px;
+}
+.sidebar-icon.active {
+    background-color: #e6f7f7;
+    color: #26d0ce;
+    border-left: 3px solid #26d0ce;
+    border-radius: 0 8px 8px 0;
+    width: 100%;
+}
+
+/* 💻 右側：メインコンテンツ全体 */
+.main-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 上部：お知らせ・ユーザー情報ヘッダー */
+.top-header {
+    height: 50px;
+    background-color: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 24px;
+    font-size: 14px;
+}
+.notice-link {
+    color: #26d0ce;
+    text-decoration: none;
+    font-weight: bold;
+}
+.user-info {
+    color: #4b5563;
+}
+.user-name {
+    color: #26d0ce;
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+/* メインコンテンツエリア */
+.container {
+    padding: 30px;
+    max-width: 1100px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* ✨ ステータス帯「ただいま勤務中」など */
+.status-bar {
+    background: linear-gradient(90deg, #26d0ce, #1aaba8);
+    color: #ffffff;
+    text-align: center;
+    padding: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 6px 6px 0 0;
+    letter-spacing: 2px;
+}
+
+/* 🗂️ 中央のメイン打刻カード */
+.main-card {
+    background-color: #ffffff;
+    border-radius: 6px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    margin-bottom: 40px;
+}
+.card-body {
+    padding: 40px;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+/* カード内左側：時計とシフト詳細 */
+.card-left {
+    flex: 1;
+    min-width: 300px;
+    text-align: center;
+    padding-right: 40px;
+}
+.current-date {
+    font-size: 20px;
+    color: #4b5563;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+.clock-display {
+    font-size: 76px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 25px;
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+}
+.clock-seconds {
+    font-size: 36px;
+    margin-left: 10px;
+    color: #7f8c8d;
+}
+.shift-info-box {
+    text-align: left;
+    display: inline-block;
+    color: #555555;
+    font-size: 14px;
+    line-height: 1.8;
+    background-color: #fdfdfd;
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px dashed #e0e0e0;
+}
+
+/* カード内右側：打刻ボタン・勤務地など */
+.card-right {
+    width: 420px;
+}
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+.info-label {
+    color: #7f8c8d;
+}
+.info-value {
+    font-weight: bold;
+    color: #333;
+}
+.change-link {
+    color: #26d0ce;
+    text-decoration: none;
+    margin-left: 10px;
+}
+
+/* 🔘 打刻ボタンエリア */
+.punch-buttons {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 25px;
+}
+.btn-punch {
+    flex: 1;
+    height: 110px;
+    border-radius: 12px;
+    font-size: 32px;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+.btn-punch:active {
+    transform: scale(0.98);
+}
+.btn-in {
+    background-color: #26d0ce;
+    color: #ffffff;
+}
+.btn-out {
+    background-color: #26d0ce;
+    color: #ffffff;
+}
+/* サンプルの通り、押せない方は薄グレーの背景に白文字 */
+.btn-punch:disabled {
+    background-color: #e0e0e0;
+    color: #b0b0b0;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* 休憩・サブアクション */
+.sub-actions {
+    text-align: center;
+    margin-bottom: 25px;
+}
+.btn-break {
+    width: 60%;
+    background-color: #ffffff;
+    border: 1px solid #26d0ce;
+    color: #26d0ce;
+    padding: 10px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.btn-break:disabled {
+    border-color: #ccc;
+    color: #ccc;
+    cursor: not-allowed;
+}
+
+/* 下部申請系ボタン */
+.bottom-actions {
+    display: flex;
+    gap: 15px;
+}
+.btn-outline {
+    flex: 1;
+    background-color: #ffffff;
+    border: 1px solid #26d0ce;
+    color: #26d0ce;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+/* 📅 下部：打刻履歴セクション */
+.history-section-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #1aaba8;
+    border-bottom: 2px solid #26d0ce;
+    padding-bottom: 5px;
+    display: inline-block;
+    margin-bottom: 20px;
+}
+.date-line {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: #7f8c8d;
+    font-size: 14px;
+    margin: 20px 0;
+}
+.date-line::before, .date-line::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #e5e7eb;
+}
+.date-line:not(:empty)::before { margin-right: 15px; }
+.date-line:not(:empty)::after { margin-left: 15px; }
