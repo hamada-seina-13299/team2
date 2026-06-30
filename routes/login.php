@@ -10,4 +10,3 @@ Route::post('/login', [LoginController::class, 'login']);
 
 // ログアウト処理
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
-?>
