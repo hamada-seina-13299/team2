@@ -87,7 +87,10 @@
                             </td>
                             <td class="p-3 text-sm text-center align-middle">
                                 @if($day['shift'])
-                                    <button type="button" class="btn-edit">修正</button>
+                                    {{-- ボタンの見た目のまま、修正画面へのリンクに書き換えます --}}
+                                    <a href="{{ route('shiftcorrection.index', ['shift_id' => $day['shift']->id]) }}" class="btn-edit inline-block text-center">
+                                        修正
+                                    </a>
                                 @else
                                     <button type="button"
                                         data-date="{{ $day['date']->format('Y-m-d') }}"
