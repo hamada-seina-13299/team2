@@ -19,15 +19,16 @@
         </div>
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto w-full">
-            <table class="w-full border-collapse table-fixed min-w-[600px]">
+            <table class="w-full border-collapse table-fixed min-w-[650px]">
                 <thead>
                     <tr class="bg-gray-50/75 border-b border-gray-100">
-                        <th class="p-4 text-sm font-semibold text-gray-600 text-center w-[15%]">日付</th>
+                        <th class="p-4 text-sm font-semibold text-gray-600 text-center w-[10%]">選択</th>
+                        <th class="p-4 text-sm font-semibold text-gray-600 text-center w-[12%]">日付</th>
                         <th class="p-4 text-sm font-semibold text-gray-600 text-center w-[15%]">出勤時刻</th>
                         <th class="p-4 text-sm font-semibold text-gray-600 text-center w-[15%]">退勤時刻</th>
-                        <th class="p-4 text-sm font-semibold text-gray-600 text-center w-[25%]">勤務地</th>
-                        <th class="p-4 text-sm font-semibold text-gray-600 text-center w-[15%]">修正</th>
-                        <th class="p-4 text-sm font-semibold text-gray-600 text-center w-[15%]">削除</th>
+                        <th class="p-4 text-sm font-semibold text-gray-600 text-center w-[24%]">勤務地</th>
+                        <th class="p-4 text-sm font-semibold text-gray-600 text-center w-[12%]">修正</th>
+                        <th class="p-4 text-sm font-semibold text-gray-600 text-center w-[12%]">削除</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -49,9 +50,18 @@
                         @endphp
 
                         <tr class="border-b border-gray-100 {{ $rowBg }} h-14 transition-colors">
+                            <td class="p-3 text-center align-middle">
+                                @if(!$day['shift'])
+                                    <input type="checkbox" class="shift-bulk-checkbox w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer" value="{{ $day['date']->format('Y-m-d') }}">
+                                @else
+                                    <span class="text-xs text-gray-300 select-none">-</span>
+                                @endif
+                            </td>
+
                             <td class="p-3 text-sm {{ $dateColor }} font-semibold text-center align-middle">
                                 {{ $day['date']->format('d') }} ({{ $japaneseWeek }})
                             </td>
+                            
                             <td class="p-3 text-sm text-gray-600 text-center align-middle">
                                 @if($day['shift'])
                                     {{ date('H:i', strtotime($day['shift']->shiftMaster->attendance)) }}
@@ -77,7 +87,10 @@
                             </td>
                             <td class="p-3 text-sm text-center align-middle">
                                 @if($day['shift'])
-                                    <button type="button" class="btn-edit">修正</button>
+                                    {{-- ボタンの見た目のまま、修正画面へのリンクに書き換えます --}}
+                                    <a href="{{ route('shiftcorrection.index', ['shift_id' => $day['shift']->id]) }}" class="btn-edit inline-block text-center">
+                                        修正
+                                    </a>
                                 @else
                                     <button type="button"
                                         data-date="{{ $day['date']->format('Y-m-d') }}"
@@ -89,8 +102,8 @@
                             <td class="p-3 text-sm text-center align-middle">
                                 @if($day['shift'])
                                     <form action="{{ route('shift.delete') }}" method="POST"
-                                          data-confirm-date="{{ $day['date']->format('m月d日') }}"
-                                          class="delete-shift-form inline-block m-0">
+                                        data-confirm-date="{{ $day['date']->format('m月d日') }}"
+                                        class="delete-shift-form inline-block m-0">
                                         @csrf
                                         @method('DELETE')
                                         <input type="hidden" name="shift_id" value="{{ $day['shift']->id }}">
@@ -128,13 +141,17 @@
                 <form id="shiftAddForm" action="{{ route('shift.store') }}" method="POST">
                     @csrf
 
-                    <div class="mb-4">
-                        <label class="block mb-1 text-sm font-medium text-gray-700">対象日 <span class="text-red-500">*</span></label>
-                        <input type="date" id="modalTargetDate" name="target_date" value="{{ old('target_date') }}"
-                            class="w-full border rounded-lg p-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                        @error('target_date')
-                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                        @enderror
+                    <div id="modalTargetDateGroup" class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">対象日 <span class="text-red-500">*</span></label>
+                        <input type="date" id="modalTargetDate" name="target_date" 
+                               class="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-gray-800 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none text-sm">
+                    </div>
+
+                    <div id="bulkDateMessageGroup" class="hidden mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2 animate-fade-in">
+                        <span class="text-blue-600 text-base">📅</span>
+                        <p class="text-sm font-semibold text-blue-800">
+                            <span id="modalBulkCount" class="font-extrabold text-blue-600 underline text-base">0</span> 件のシフトをまとめて追加します。
+                        </p>
                     </div>
 
                     <div class="mb-4">
@@ -247,6 +264,12 @@
         data-has-fields-error="{{ ($errors->has('new_working_place') || $errors->has('new_attendance') || $errors->has('new_leaving')) ? 'true' : 'false' }}"
         class="hidden">
     </span>
+
+    <div id="floatingBulkBtnContainer" class="hidden fixed bottom-6 right-6 z-40 animate-fade-in">
+        <button type="button" id="openBulkModalBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-xl text-sm">
+            選択した <span id="selectedCount" class="underline font-extrabold mx-0.5">0</span> 日分をまとめて追加
+        </button>
+    </div>
 
     @vite(['resources/css/shift.css', 'resources/js/shift.js'])
 </x-app-layout>
