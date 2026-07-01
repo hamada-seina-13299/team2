@@ -10,16 +10,13 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/login.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
-        then: function () {
-            // shiftcorrection.php を追加で読み込む
-            \Illuminate\Support\Facades\Route::middleware('web')
-                ->group(base_path('routes/shiftcorrection.php'));
-        },
-
         // 【追記】ここから
         then: function () {
             Route::middleware('web')
                 ->group(base_path('routes/dashboard.php'));
+            // shiftcorrection.php を追加で読み込む
+            \Illuminate\Support\Facades\Route::middleware('web')
+                ->group(base_path('routes/shiftcorrection.php'));
         },
         // 【追記】ここまで
     )
