@@ -4,10 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>シフト修正</title>
+    <title>勤怠修正</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap');
 
         :root {
             --sc-bg: #F0F2F5;
@@ -205,24 +205,13 @@
 
 <body>
     <div class="container py-4">
-        <h1 class="h4 mb-4">シフト修正</h1>
-
+        <h1 class="h4 mb-4">勤怠修正</h1>
         @if (session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
         @endif
 
         @if (session('error'))
         <div class="alert alert-danger">{{ session('error') }}</div>
-        @endif
-
-        @if ($errors->any())
-        <div class="alert alert-danger">
-            <ul class="mb-0">
-                @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
         @endif
 
         <div class="row">
@@ -239,48 +228,53 @@
                 </form>
             </div>
 
-            {{-- 変更前の現在のシフト予定 --}}
+            {{-- 左側：実際の打刻実績 --}}
             <div class="col-md-6 mb-4">
                 <div class="card">
-                    <div class="card-header">現在の登録シフト ({{ $targetDate }})</div>
+                    <div class="card-header">
+                        実際の打刻実績 ({{ $targetDate }})
+                    </div>
                     <div class="card-body">
-                        @if ($currentShift)
-                        <p class="text-muted mb-2">現在、この日に以下のシフトが登録されています。</p>
-                        <table class="table table-borderless mb-0">
-                            <tr>
-                                <th class="w-50">現在のシフトパターン</th>
-                                {{-- マップからパターン名を取得し、なければ「不明」と表示 --}}
-                                <td>{{ $shiftMasterMap[$currentShift->master_id] ?? '未設定' }}</td>
-                            </tr>
-                            <tr>
-                                <th>出勤予定時刻</th>
-                                <td>{{ \Carbon\Carbon::parse($currentShift->attendance_edit)->format('H:i') }}</td>
-                            </tr>
-                            <tr>
-                                <th>退勤予定時刻</th>
-                                <td>{{ \Carbon\Carbon::parse($currentShift->leaving_edit)->format('H:i') }}</td>
-                            </tr>
-                        </table>
+                        @if ($working)
+                        <div class="d-flex flex-wrap gap-4 align-items-center py-2" style="font-size: 1.05rem;">
+                            <div class="d-flex align-items-center gap-2">
+                                <span style="display: inline-block; width: 13px; height: 13px; background-color: #50E3C2; border-radius: 50%; flex-shrink: 0;"></span>
+                                <span style="color: #1F2933;">
+                                    出勤: {{ \Carbon\Carbon::parse($working->attendance)->format('H:i') }}
+                                    @if($working->working_place)
+                                    ({{ $working->working_place }})
+                                    @endif
+                                </span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span style="display: inline-block; width: 13px; height: 13px; background-color: #E24A68; border-radius: 50%; flex-shrink: 0;"></span>
+                                <span style="color: #1F2933;">
+                                    退勤: {{ $working->leaving ? \Carbon\Carbon::parse($working->leaving)->format('H:i') : '-' }}
+                                </span>
+                            </div>
+                        </div>
                         @else
-                        <p class="text-muted mb-0">この日にはまだ基本シフトの登録がありません。（新規で申請を行ってください）</p>
+                        <p class="text-muted mb-0">この日の打刻実績（出退勤データ）はありません。</p>
                         @endif
                     </div>
                 </div>
             </div>
 
-            {{-- ⭕ 改善点2: 完全に独立した修正申請フォーム --}}
+            {{-- 右側：勤怠修正申請フォーム --}}
             <div class="col-md-6 mb-4">
                 <div class="card">
-                    <div class="card-header">シフト修正申請</div>
+                    <div class="card-header">
+                        勤怠修正申請
+                    </div>
                     <div class="card-body">
-                        <form method="POST" action="{{ route('shiftcorrection.store') }}">
+                        <form method="POST" action="{{ route('attendancecorrection.store') }}">
                             @csrf
 
                             <div class="mb-3">
                                 <label for="target_date" class="form-label">対象日 <span class="text-danger">*</span></label>
                                 <input type="date" id="target_date" name="target_date" class="form-control"
                                     value="{{ old('target_date', $targetDate) }}"
-                                    min="{{ now()->addDay()->format('Y-m-d') }}" required>
+                                    max="{{ now()->format('Y-m-d') }}" required>
                             </div>
 
                             <div class="mb-3">
@@ -288,11 +282,9 @@
                                 <select id="master_id" name="master_id" class="form-select" required>
                                     <option value="">選択してください</option>
                                     @foreach ($shiftMasters as $master)
-                                    {{-- ⭕ 前回追加内容（$currentShift）があれば初期選択されるように制御 --}}
                                     <option value="{{ $master->id }}"
                                         data-attendance="{{ \Carbon\Carbon::parse($master->attendance)->format('H:i') }}"
-                                        data-leaving="{{ \Carbon\Carbon::parse($master->leaving)->format('H:i') }}"
-                                        {{ old('master_id', $currentShift->master_id ?? '') == $master->id ? 'selected' : '' }}>
+                                        data-leaving="{{ \Carbon\Carbon::parse($master->leaving)->format('H:i') }}">
                                         {{ $master->name }} ({{ \Carbon\Carbon::parse($master->attendance)->format('H:i') }}〜)
                                     </option>
                                     @endforeach
@@ -302,15 +294,11 @@
                             <div class="row">
                                 <div class="col-6 mb-3">
                                     <label for="attendance_edit" class="form-label">修正後 出勤時刻 <span class="text-danger">*</span></label>
-                                    {{-- ⭕ 前回追加内容があれば初期値にセット --}}
-                                    <input type="time" id="attendance_edit" name="attendance_edit" class="form-control"
-                                        value="{{ old('attendance_edit', isset($currentShift->attendance_edit) ? \Carbon\Carbon::parse($currentShift->attendance_edit)->format('H:i') : '') }}" required>
+                                    <input type="time" id="attendance_edit" name="attendance_edit" class="form-control" value="{{ old('attendance_edit') }}" required>
                                 </div>
                                 <div class="col-6 mb-3">
                                     <label for="leaving_edit" class="form-label">修正後 退勤時刻 <span class="text-danger">*</span></label>
-                                    {{-- ⭕ 前回追加内容があれば初期値にセット --}}
-                                    <input type="time" id="leaving_edit" name="leaving_edit" class="form-control"
-                                        value="{{ old('leaving_edit', isset($currentShift->leaving_edit) ? \Carbon\Carbon::parse($currentShift->leaving_edit)->format('H:i') : '') }}" required>
+                                    <input type="time" id="leaving_edit" name="leaving_edit" class="form-control" value="{{ old('leaving_edit') }}" required>
                                 </div>
                             </div>
 
@@ -327,9 +315,11 @@
             </div>
         </div>
 
-        {{-- 修正申請履歴 --}}
-        <div class="card">
-            <div class="card-header">シフト修正申請履歴</div>
+        {{-- 勤怠修正申請履歴 --}}
+        <div class="card mt-2">
+            <div class="card-header">
+                勤怠修正申請履歴
+            </div>
             <div class="card-body p-0">
                 <table class="table mb-0">
                     <thead>
@@ -345,43 +335,37 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse ($shifts as $shift)
+                        @forelse ($corrections as $correction)
                         <tr>
-                            <td data-label="対象日">{{ \Carbon\Carbon::parse($shift->target_date)->format('Y-m-d') }}</td>
-                            <td data-label="シフトパターン">{{ $shiftMasterMap[$shift->master_id] ?? '不明' }}</td>
-                            <td data-label="出勤">{{ \Carbon\Carbon::parse($shift->attendance_edit)->format('H:i') }}</td>
-                            <td data-label="退勤">{{ \Carbon\Carbon::parse($shift->leaving_edit)->format('H:i') }}</td>
-                            <td data-label="メモ">{{ $shift->memo }}</td>
-                            <td data-label="状態">
-                                @switch($shift->status)
-                                @case('pending')
-                                <span class="badge bg-warning text-dark">承認待ち</span>
-                                @break
-                                @case('approved')
+                            <td>{{ \Carbon\Carbon::parse($correction->target_date)->format('Y-m-d') }}</td>
+                            <td>{{ $shiftMasterMap[$correction->master_id] ?? '不明' }}</td>
+                            <td>{{ \Carbon\Carbon::parse($correction->attendance_edit)->format('H:i') }}</td>
+                            <td>{{ \Carbon\Carbon::parse($correction->leaving_edit)->format('H:i') }}</td>
+                            <td>{{ $correction->memo }}</td>
+                            <td>
+                                @if($correction->status === '申請中')
+                                <span class="badge bg-warning">承認待ち</span>
+                                @elseif($correction->status === 'approved')
                                 <span class="badge bg-success">承認済み</span>
-                                @break
-                                @case('rejected')
+                                @else
                                 <span class="badge bg-danger">却下</span>
-                                @break
-                                @default
-                                <span class="badge bg-secondary">{{ $shift->status }}</span>
-                                @endswitch
+                                @endif
                             </td>
-                            <td data-label="申請日時">{{ $shift->created_at->format('Y-m-d H:i') }}</td>
-                            <td data-label="">
-                                @if ($shift->status === 'pending')
-                                <form method="POST" action="{{ route('shiftcorrection.destroy', $shift) }}"
+                            <td>{{ $correction->created_at->format('Y-m-d H:i') }}</td>
+                            <td>
+                                @if ($correction->status === '申請中')
+                                <form method="POST" action="{{ route('attendancecorrection.destroy', $correction) }}"
                                     onsubmit="return confirm('この修正申請を取り消しますか？');">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">取消</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius: 5px !important; font-size: 0.78rem !important; padding: 0.25rem 0.6rem !important;">取消</button>
                                 </form>
                                 @endif
                             </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-3">修正申請の履歴はありません。</td>
+                            <td colspan="8" class="text-center text-muted py-4">勤怠修正申請の履歴はありません。</td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -390,9 +374,7 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
     <script>
-        // シフトパターン選択時に修正時刻欄へ初期値を自動入力
         document.getElementById('master_id').addEventListener('change', function(e) {
             const option = e.target.selectedOptions[0];
             if (!option || !option.value) return;

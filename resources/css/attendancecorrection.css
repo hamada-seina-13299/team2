@@ -1,0 +1,358 @@
+@import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+:root {
+    --sc-bg:           #F0F2F5;
+    --sc-surface:      #FFFFFF;
+    --sc-border:       #D9DDE4;
+    --sc-primary:      #2B4C7E;
+    --sc-primary-dark: #1E3A63;
+    --sc-primary-soft: #E8EEF6;
+    --sc-text:         #1F2933;
+    --sc-muted:        #6B7280;
+    --sc-pending-bg:   #FBF1DF;
+    --sc-pending-tx:   #7A4D0A;
+    --sc-approved-bg:  #E4F2EE;
+    --sc-approved-tx:  #1A5C45;
+    --sc-rejected:     #C75146;
+    --sc-rejected-bg:  #FAE7E5;
+    --sc-rejected-tx:  #7A2820;
+    --sc-radius:       10px;
+    --sc-shadow:       0 1px 3px rgba(31,41,51,.06), 0 4px 16px rgba(31,41,51,.07);
+}
+
+/* ===== ページ上部アクセントバー ===== */
+body::before {
+    content: "";
+    display: block;
+    height: 4px;
+    background: linear-gradient(90deg, var(--sc-primary) 0%, #4A7EC0 100%);
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 9999;
+}
+
+body {
+    background: var(--sc-bg) !important;
+    font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif;
+    color: var(--sc-text);
+    -webkit-font-smoothing: antialiased;
+}
+
+.container {
+    max-width: 1100px;
+}
+
+/* ===== ページタイトル ===== */
+h1.h4 {
+    font-family: "Zen Kaku Gothic New", sans-serif;
+    font-weight: 900 !important;
+    font-size: 1.45rem !important;
+    color: var(--sc-primary-dark) !important;
+    display: flex !important;
+    align-items: center;
+    gap: 0.6rem;
+    padding-bottom: 0.9rem;
+    border-bottom: 2px solid var(--sc-border);
+    margin-bottom: 1.5rem !important;
+}
+
+h1.h4::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 24px;
+    background: var(--sc-primary);
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+/* ===== アラート ===== */
+.alert {
+    border: none !important;
+    border-left: 4px solid !important;
+    border-radius: var(--sc-radius) !important;
+    font-size: .92rem;
+    box-shadow: var(--sc-shadow);
+}
+.alert-success {
+    background: var(--sc-approved-bg) !important;
+    color: var(--sc-approved-tx) !important;
+    border-left-color: #3A9278 !important;
+}
+.alert-danger {
+    background: var(--sc-rejected-bg) !important;
+    color: var(--sc-rejected-tx) !important;
+    border-left-color: var(--sc-rejected) !important;
+}
+
+/* ===== 対象日エリア ===== */
+.sc-date-row {
+    background: var(--sc-surface);
+    border: 1px solid var(--sc-border);
+    border-radius: var(--sc-radius);
+    padding: 1rem 1.25rem;
+    box-shadow: var(--sc-shadow);
+    display: flex !important;
+    align-items: flex-end;
+    gap: 0.75rem;
+}
+
+.sc-date-row .form-label {
+    font-size: .75rem;
+    font-weight: 700;
+    color: var(--sc-muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+}
+
+/* ===== カード：ヘッダーを紺に ===== */
+.card {
+    border: 1px solid var(--sc-border) !important;
+    border-radius: var(--sc-radius) !important;
+    box-shadow: var(--sc-shadow) !important;
+    overflow: hidden;
+}
+
+/* Bootstrap の .card-header は background-color: rgba(0,0,0,.03) なので上書き */
+.card > .card-header {
+    background-color: var(--sc-primary) !important;
+    color: #fff !important;
+    border-bottom: none !important;
+    font-family: "Zen Kaku Gothic New", sans-serif;
+    font-weight: 700 !important;
+    font-size: .93rem;
+    letter-spacing: .04em;
+    padding: .9rem 1.25rem !important;
+    position: relative;
+}
+
+/* タイムカード打刻穴アクセント */
+.card > .card-header::after {
+    content: "";
+    position: absolute;
+    left: 1.25rem; right: 1.25rem; bottom: 0;
+    height: 3px;
+    background-image: radial-gradient(circle, rgba(255,255,255,.2) 2px, transparent 2.1px);
+    background-size: 12px 3px;
+    background-repeat: repeat-x;
+}
+
+.card-body {
+    padding: 1.25rem !important;
+    background: var(--sc-surface) !important;
+}
+
+/* ===== 打刻実績テーブル ===== */
+.table-borderless th {
+    color: var(--sc-muted) !important;
+    font-size: .82rem;
+    font-weight: 500 !important;
+    padding: .5rem 0 !important;
+    border: none !important;
+    width: 45%;
+}
+.table-borderless td {
+    font-family: "Zen Kaku Gothic New", monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700 !important;
+    font-size: 1.05rem;
+    color: var(--sc-primary-dark) !important;
+    padding: .5rem 0 !important;
+    border: none !important;
+}
+
+/* ===== フォーム ===== */
+.form-label {
+    font-size: .82rem !important;
+    font-weight: 700 !important;
+    color: var(--sc-text) !important;
+    margin-bottom: .3rem !important;
+}
+
+.form-control,
+.form-select {
+    border: 1px solid var(--sc-border) !important;
+    border-radius: 7px !important;
+    padding: .6rem .8rem !important;
+    font-size: .92rem !important;
+    background-color: #FAFBFC !important;
+    color: var(--sc-text) !important;
+    transition: border-color .15s, box-shadow .15s;
+}
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--sc-primary) !important;
+    box-shadow: 0 0 0 3px var(--sc-primary-soft) !important;
+    background-color: #fff !important;
+}
+
+input[type="time"].form-control,
+input[type="date"].form-control {
+    font-family: "Zen Kaku Gothic New", monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+textarea.form-control {
+    resize: vertical;
+    min-height: 88px;
+}
+
+/* ===== ボタン ===== */
+/* 申請ボタン：幅いっぱい */
+.sc-submit-btn {
+    display: block !important;
+    width: 100% !important;
+    padding: .75rem !important;
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+    letter-spacing: .05em;
+    background-color: var(--sc-primary) !important;
+    border-color: var(--sc-primary) !important;
+    border-radius: 8px !important;
+    margin-top: .4rem;
+    transition: background-color .15s, transform .1s;
+}
+.sc-submit-btn:hover {
+    background-color: var(--sc-primary-dark) !important;
+    border-color: var(--sc-primary-dark) !important;
+}
+.sc-submit-btn:active {
+    transform: translateY(1px);
+}
+
+/* 表示ボタン */
+.btn-outline-secondary {
+    border-color: var(--sc-border) !important;
+    color: var(--sc-muted) !important;
+    background: #fff !important;
+    font-weight: 700 !important;
+    border-radius: 7px !important;
+    white-space: nowrap;
+}
+.btn-outline-secondary:hover {
+    background: var(--sc-primary-soft) !important;
+    border-color: var(--sc-primary) !important;
+    color: var(--sc-primary-dark) !important;
+}
+
+/* 取消ボタン */
+.btn-outline-danger {
+    border-color: var(--sc-rejected) !important;
+    color: var(--sc-rejected) !important;
+    background: #fff !important;
+    font-weight: 700 !important;
+    font-size: .78rem !important;
+    padding: .28rem .7rem !important;
+    border-radius: 6px !important;
+}
+.btn-outline-danger:hover {
+    background: var(--sc-rejected) !important;
+    color: #fff !important;
+}
+
+/* ===== 履歴テーブル ===== */
+.card-body.p-0 { padding: 0 !important; }
+
+.table { margin-bottom: 0 !important; }
+
+.table thead th {
+    background: #F7F8FA !important;
+    color: var(--sc-muted) !important;
+    font-size: .74rem !important;
+    font-weight: 700 !important;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--sc-border) !important;
+    border-top: none !important;
+    padding: .7rem 1rem !important;
+    white-space: nowrap;
+}
+
+.table tbody td {
+    padding: .8rem 1rem !important;
+    font-size: .9rem;
+    color: var(--sc-text);
+    border-bottom: 1px solid var(--sc-border) !important;
+    border-top: none !important;
+    vertical-align: middle;
+}
+.table tbody tr:last-child td { border-bottom: none !important; }
+.table tbody tr:hover td { background: var(--sc-primary-soft); }
+
+/* 時刻列を等幅 */
+.table tbody td:nth-child(3),
+.table tbody td:nth-child(4) {
+    font-family: "Zen Kaku Gothic New", monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    color: var(--sc-primary-dark);
+}
+
+/* ===== バッジ ===== */
+.badge {
+    font-weight: 700 !important;
+    font-size: .72rem !important;
+    padding: .38em .8em !important;
+    border-radius: 999px !important;
+    letter-spacing: .03em;
+}
+.badge.bg-warning {
+    background: var(--sc-pending-bg) !important;
+    color: var(--sc-pending-tx) !important;
+}
+.badge.bg-success {
+    background: var(--sc-approved-bg) !important;
+    color: var(--sc-approved-tx) !important;
+}
+.badge.bg-danger {
+    background: var(--sc-rejected-bg) !important;
+    color: var(--sc-rejected-tx) !important;
+}
+.badge.bg-secondary {
+    background: #EEF0F3 !important;
+    color: var(--sc-muted) !important;
+}
+
+/* ===== 空状態 ===== */
+.text-center.text-muted.py-3 {
+    padding: 2.5rem 1rem !important;
+    color: var(--sc-muted) !important;
+    font-size: .9rem;
+}
+
+/* ===== レスポンシブ ===== */
+@media (max-width: 767.98px) {
+    h1.h4 { font-size: 1.2rem !important; }
+
+    .table thead { display: none; }
+    .table tbody tr {
+        display: block;
+        border-bottom: 8px solid var(--sc-bg) !important;
+    }
+    .table tbody td {
+        display: flex !important;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        border-bottom: 1px dashed var(--sc-border) !important;
+    }
+    .table tbody td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: var(--sc-muted);
+        font-size: .75rem;
+        white-space: nowrap;
+    }
+}
+
+/* ===== アクセシビリティ ===== */
+a:focus-visible, button:focus-visible,
+input:focus-visible, select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--sc-primary);
+    outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+}
