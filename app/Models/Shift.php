@@ -3,6 +3,9 @@
 namespace App\Models;
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 9f57ad9614dd86643c23d207cb75f1d24ace7b15
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,12 +16,15 @@ class Shift extends Model
     use HasFactory;
 
     // 一括代入(create)を許可するカラム
+<<<<<<< HEAD
 =======
 use Illuminate\Database\Eloquent\Model;
 
 class Shift extends Model
 {
 >>>>>>> main
+=======
+>>>>>>> 9f57ad9614dd86643c23d207cb75f1d24ace7b15
     protected $fillable = [
         'user_id',
         'master_id',
@@ -29,6 +35,9 @@ class Shift extends Model
         'status',
     ];
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 9f57ad9614dd86643c23d207cb75f1d24ace7b15
 
     // 型変換(date型・time型をきれいに扱うため)
     protected $casts = [
@@ -48,6 +57,9 @@ class Shift extends Model
     {
         return $this->belongsTo(ShiftMaster::class, 'master_id');
     }
+<<<<<<< HEAD
 =======
 >>>>>>> main
+=======
+>>>>>>> 9f57ad9614dd86643c23d207cb75f1d24ace7b15
 }
