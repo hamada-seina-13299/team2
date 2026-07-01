@@ -23,6 +23,10 @@ return Application::configure(basePath: dirname(__DIR__))
             // shift.php を追加
             Route::middleware('web')
                 ->group(base_path('routes/shift.php'));
+
+            // attendancecorrection.php を追加
+            Route::middleware('web')
+                ->group(base_path('routes/attendancecorrection.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
