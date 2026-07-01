@@ -10,6 +10,7 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/login.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+
         then: function () {
             // shiftcorrection.php を追加
             Route::middleware('web')
