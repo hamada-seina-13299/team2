@@ -18,6 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
             // dashboard.php を追加
             Route::middleware('web')
                 ->group(base_path('routes/dashboard.php'));
+
+            // shift.php を追加
+            Route::middleware('web')
+                ->group(base_path('routes/shift.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
