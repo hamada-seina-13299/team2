@@ -1,0 +1,78 @@
+@charset "UTF-8";
+
+body {
+	text-align: center; /* 中央寄せ */
+    margin: 0;
+    padding: 0;
+    background-color: #e0f2f1; /* 全体の背景（淡いターコイズ系） */
+    min-height: 100vh;
+    display: flex;
+    justify-content: center; /* 左右の中央寄せ */
+    align-items: center;     /* 上下の中央寄せ */
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* 2. ログイン画面を白いポップアップ（カード風）にする */
+.container {
+    background-color: #ffffff; /* ポップアップの背景は白 */
+    width: 100%;
+    max-width: 420px;          /* 横幅が広がりすぎないように制限 */
+    padding: 40px 30px;        /* 内側の余白をゆったり取る */
+    border-radius: 16px;       /* 角を丸くして柔らかい印象に */
+    
+    /* 綺麗に浮かび上がらせるための立体的な影（重要！） */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15); 
+    
+    /* ポップアップがパッと表示されたような軽いアニメーション */
+    animation: popupScale 0.3s ease-out;
+}
+
+main {
+	border-collapse: collapse;
+}
+
+table {
+    margin: 20px auto; /* テーブル自体を中央に寄せる */
+    width: 100%;
+    max-width: 400px;
+}
+
+th, td {
+    padding: 10px;
+    text-align: left; /* ラベルや入力欄は左揃えが見やすい */
+}
+
+input[type="text"],
+input[type="password"] {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box; /* 枠線を含めたサイズ計算 */
+    border: 1.5px solid #ccc;
+    border-radius: 4px;
+}
+
+/* 入力枠をクリックしたときの色 */
+input[type="text"]:focus,
+input[type="password"]:focus {
+    border-color: #00CED1;
+    outline: none;
+}
+
+.btn {
+	margin: 2px;
+	padding: 8px 20px;
+	background-color: #20B2AA	;
+	color: #000000;
+	border: none;
+	cursor: pointer;
+	border-radius: 10px; /* 全ての角を30px丸める */
+}
+/* 送信ボタン(マウスオーバー時) */
+.btn:hover {
+	background-color: #3A9DB5	;
+	border-radius: 10px; /* 全ての角を30px丸める */
+}
+/* ボタンを押した瞬間のへこむ演出 */
+.btn:active {
+    transform: scale(0.98);
+}

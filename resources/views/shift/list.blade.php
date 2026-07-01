@@ -35,22 +35,19 @@
                         @php
                             $isSunday = $day['date']->isSunday();
                             $isSaturday = $day['date']->isSaturday();
-                            
+
                             $dateColor = 'text-gray-800';
                             if ($isSunday) $dateColor = 'text-red-600';
                             if ($isSaturday) $dateColor = 'text-blue-600';
-                            
-                            $rowBg = 'bg-white hover:bg-gray-50/75';
-                            if ($isSunday) {
-                                $rowBg = 'bg-red-50/30 hover:bg-red-100/40';
-                            } elseif ($isSaturday) {
-                                $rowBg = 'bg-blue-50/30 hover:bg-blue-100/40';
-                            }
-                            
+
+                            $rowBg = 'shift-row-default';
+                            if ($isSunday) $rowBg = 'shift-row-sunday';
+                            elseif ($isSaturday) $rowBg = 'shift-row-saturday';
+
                             $weeks = ['日', '月', '火', '水', '木', '金', '土'];
                             $japaneseWeek = $weeks[$day['date']->dayOfWeek];
                         @endphp
-                        
+
                         <tr class="border-b border-gray-100 {{ $rowBg }} h-14 transition-colors">
                             <td class="p-3 text-sm {{ $dateColor }} font-semibold text-center align-middle">
                                 {{ $day['date']->format('d') }} ({{ $japaneseWeek }})
@@ -80,25 +77,24 @@
                             </td>
                             <td class="p-3 text-sm text-center align-middle">
                                 @if($day['shift'])
-                                    <button type="button" class="border border-blue-400 text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-50 bg-white text-xs font-medium whitespace-nowrap transition-colors">修正</button>
+                                    <button type="button" class="btn-edit">修正</button>
                                 @else
-                                    <button type="button" data-date="{{ $day['date']->format('Y-m-d') }}" 
-                                        class="open-add-modal-btn text-blue-600 hover:text-blue-800 hover:underline font-semibold text-xs whitespace-nowrap">
+                                    <button type="button"
+                                        data-date="{{ $day['date']->format('Y-m-d') }}"
+                                        class="open-add-modal-btn add-shift-btn {{ $dateColor }}">
                                         + シフトを追加
                                     </button>
                                 @endif
                             </td>
                             <td class="p-3 text-sm text-center align-middle">
                                 @if($day['shift'])
-                                    <form action="{{ route('shift.delete', $day['shift']->id) }}" method="POST" 
+                                    <form action="{{ route('shift.delete') }}" method="POST"
                                           data-confirm-date="{{ $day['date']->format('m月d日') }}"
                                           class="delete-shift-form inline-block m-0">
                                         @csrf
                                         @method('DELETE')
                                         <input type="hidden" name="shift_id" value="{{ $day['shift']->id }}">
-                                        <button type="submit" class="border border-red-400 text-red-500 px-3 py-1 rounded-lg hover:bg-red-50 bg-white text-xs font-medium transition-all whitespace-nowrap">
-                                            削除
-                                        </button>
+                                        <button type="submit" class="btn-delete">削除</button>
                                     </form>
                                 @endif
                             </td>
@@ -109,9 +105,10 @@
         </div>
     </div>
 
+    {{-- シフト追加モーダル --}}
     <div id="addModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-            
+
             <div class="flex justify-between items-center mb-4 flex-shrink-0">
                 <h2 class="font-bold text-lg text-gray-800">シフトを追加する</h2>
                 <button type="button" onclick="closeAddModal()" class="text-gray-400 hover:text-gray-600 text-xl transition-colors">✕</button>
@@ -145,14 +142,15 @@
 
                         <div class="flex gap-2 mb-2 items-center justify-between">
                             <span class="text-xs text-gray-400 transition-all" id="masterSelectHelpText">登録済みのマスタから選択してください</span>
-                            <button type="button" id="toggleNewMaster" class="border border-gray-300 rounded-lg px-3 py-1.5 bg-white whitespace-nowrap hover:bg-gray-50 text-xs shadow-sm transition-colors font-semibold text-gray-700">
+                            <button type="button" id="toggleNewMaster"
+                                class="border border-gray-300 rounded-lg px-3 py-1.5 bg-white whitespace-nowrap hover:bg-gray-50 text-xs shadow-sm transition-colors font-semibold text-gray-700">
                                 ＋ 新規追加
                             </button>
                         </div>
 
                         <div id="masterScrollArea" class="border border-gray-200 rounded-xl p-2 bg-gray-50 max-h-[220px] overflow-y-auto space-y-2 shadow-inner">
                             @foreach ($shiftMasters as $master)
-                                <div class="master-option-card relative border-2 bg-white rounded-lg p-3 pr-10 text-center cursor-pointer transition-all shadow-sm hover:border-blue-300 hover:shadow"
+                                <div class="master-option-card"
                                      data-master-id="{{ $master->id }}"
                                      data-attendance="{{ $master->attendance }}"
                                      data-leaving="{{ $master->leaving }}">
@@ -161,8 +159,10 @@
                                         ({{ date('H:i', strtotime($master->attendance)) }} 〜 {{ date('H:i', strtotime($master->leaving)) }})
                                     </span>
                                     @if($master->user_id === Auth::id())
-                                        <button type="button" data-master-id="{{ $master->id }}" data-master-name="{{ $master->working_place }}"
-                                                class="delete-master-btn absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors text-xs font-bold">
+                                        <button type="button"
+                                                data-master-id="{{ $master->id }}"
+                                                data-master-name="{{ $master->working_place }}"
+                                                class="delete-master-btn">
                                             ✕
                                         </button>
                                     @endif
@@ -175,11 +175,9 @@
                         </div>
 
                         <input type="hidden" id="masterSelect" name="master_id" value="{{ old('master_id') }}">
-                        
+
                         <div id="newMasterFields" class="hidden border rounded-xl p-4 bg-gray-50 mt-3 shadow-inner">
-                            <p class="text-xs font-bold text-emerald-600 mb-3 flex items-center gap-1">
-                                ✨ 新しい勤務地マスタを登録します
-                            </p>
+                            <p class="text-xs font-bold text-emerald-600 mb-3">✨ 新しい勤務地マスタを登録します</p>
 
                             <div class="mb-3">
                                 <label class="block mb-1 text-xs font-medium text-gray-700">勤務地名 <span class="text-red-500">*</span></label>
@@ -206,7 +204,8 @@
                             </div>
 
                             <div class="text-right">
-                                <button type="submit" name="action" value="create_master" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow transition-colors">
+                                <button type="submit" name="action" value="create_master"
+                                    class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow transition-colors">
                                     上記の入力内容でマスタを登録する
                                 </button>
                             </div>
@@ -227,146 +226,27 @@
             </div>
 
             <div class="border-t pt-4 bg-white flex-shrink-0">
-                <button type="submit" form="shiftAddForm" 
-                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-xl text-sm shadow-md hover:shadow-lg active:scale-[0.99] transition-all text-center block">
+                <button type="submit" form="shiftAddForm"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-xl text-sm shadow-md hover:shadow-lg transition-all text-center block">
                     ＋ シフトを追加する
                 </button>
             </div>
-
         </div>
     </div>
 
+    {{-- マスタ削除用フォーム --}}
     <form id="masterDeleteForm" action="{{ route('shift.master.delete') }}" method="POST" class="hidden">
         @csrf
         @method('DELETE')
         <input type="hidden" id="deleteMasterId" name="master_id">
     </form>
 
-    <span id="error-data" data-has-errors="{{ $errors->any() ? 'true' : 'false' }}" data-has-fields-error="{{ ($errors->has('new_working_place') || $errors->has('new_attendance') || $errors->has('new_leaving')) ? 'true' : 'false' }}" class="hidden"></span>
+    {{-- エラー情報をJSに渡すための隠し要素 --}}
+    <span id="error-data"
+        data-has-errors="{{ $errors->any() ? 'true' : 'false' }}"
+        data-has-fields-error="{{ ($errors->has('new_working_place') || $errors->has('new_attendance') || $errors->has('new_leaving')) ? 'true' : 'false' }}"
+        class="hidden">
+    </span>
 
-    <script>
-        const addModal = document.getElementById('addModal');
-        const modalTargetDate = document.getElementById('modalTargetDate');
-        const masterSelect = document.getElementById('masterSelect');
-        const newMasterFields = document.getElementById('newMasterFields');
-        const toggleBtn = document.getElementById('toggleNewMaster');
-        const attendanceDisplay = document.getElementById('attendanceDisplay');
-        const leavingDisplay = document.getElementById('leavingDisplay');
-        const optionCards = document.querySelectorAll('.master-option-card');
-        const masterScrollArea = document.getElementById('masterScrollArea');
-        const masterSelectHelpText = document.getElementById('masterSelectHelpText');
-
-        document.querySelectorAll('.open-add-modal-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                openAddModal(this.getAttribute('data-date'));
-            });
-        });
-
-        document.querySelectorAll('.delete-shift-form').forEach(form => {
-            form.addEventListener('submit', function(e) {
-                const confirmDate = this.getAttribute('data-confirm-date');
-                if (!confirm(confirmDate + 'のシフトを削除しますか？')) {
-                    e.preventDefault();
-                }
-            });
-        });
-
-        document.querySelectorAll('.delete-master-btn').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const masterId = this.getAttribute('data-master-id');
-                const masterName = this.getAttribute('data-master-name');
-                
-                if (confirm(masterName + 'のマスタを削除しますか？')) {
-                    const form = document.getElementById('masterDeleteForm');
-                    document.getElementById('deleteMasterId').value = masterId;
-                    form.submit();
-                }
-            });
-        });
-
-        optionCards.forEach(card => {
-            card.addEventListener('click', function() {
-                newMasterFields.classList.add('hidden');
-                toggleBtn.textContent = '＋ 新規追加';
-                masterScrollArea.classList.remove('hidden');
-                masterSelectHelpText.classList.remove('invisible');
-
-                optionCards.forEach(c => c.classList.remove('border-blue-500', 'bg-blue-50/50', 'ring-2', 'ring-blue-200'));
-                this.classList.add('border-blue-500', 'bg-blue-50/50', 'ring-2', 'ring-blue-200');
-
-                masterSelect.value = this.dataset.masterId;
-                updateDisplayTimes(this.dataset.attendance, this.dataset.leaving);
-            });
-        });
-
-        function updateDisplayTimes(attendance, leaving) {
-            attendanceDisplay.value = attendance ? (attendance.match(/\d{2}:\d{2}/) ? attendance.match(/\d{2}:\d{2}/)[0] : '') : '';
-            leavingDisplay.value = leaving ? (leaving.match(/\d{2}:\d{2}/) ? leaving.match(/\d{2}:\d{2}/)[0] : '') : '';
-        }
-
-        function openAddModal(date) {
-            if (date) {
-                modalTargetDate.value = date;
-            }
-            if (addModal) {
-                addModal.classList.remove('hidden');
-            }
-            
-            if (masterSelect.value) {
-                const selectedCard = document.querySelector(".master-option-card[data-master-id='" + masterSelect.value + "']");
-                if (selectedCard) selectedCard.click();
-            }
-        }
-
-        function closeAddModal() {
-            if (addModal) {
-                addModal.classList.add('hidden');
-            }
-        }
-
-        toggleBtn.addEventListener('click', function () {
-            newMasterFields.classList.toggle('hidden');
-            
-            if (!newMasterFields.classList.contains('hidden')) {
-                toggleBtn.textContent = '✕ キャンセル';
-                masterScrollArea.classList.add('hidden');
-                masterSelectHelpText.classList.add('invisible');
-                
-                masterSelect.value = '';
-                optionCards.forEach(c => c.classList.remove('border-blue-500', 'bg-blue-50/50', 'ring-2', 'ring-blue-200'));
-                updateDisplayTimes('', '');
-            } else {
-                toggleBtn.textContent = '＋ 新規追加';
-                masterScrollArea.classList.remove('hidden');
-                masterSelectHelpText.classList.remove('invisible');
-            }
-        });
-
-        document.addEventListener('DOMContentLoaded', function () {
-            if (masterSelect.value) {
-                const selectedCard = document.querySelector(".master-option-card[data-master-id='" + masterSelect.value + "']");
-                if (selectedCard) {
-                    selectedCard.classList.add('border-blue-500', 'bg-blue-50/50', 'ring-2', 'ring-blue-200');
-                    updateDisplayTimes(selectedCard.dataset.attendance, selectedCard.dataset.leaving);
-                }
-            }
-
-            const errorEl = document.getElementById('error-data');
-            if (errorEl) {
-                const hasErrors = errorEl.getAttribute('data-has-errors') === 'true';
-                const hasFieldsError = errorEl.getAttribute('data-has-fields-error') === 'true';
-                
-                if (hasErrors) {
-                    openAddModal();
-                    if (hasFieldsError) {
-                        newMasterFields.classList.remove('hidden');
-                        toggleBtn.textContent = '✕ キャンセル';
-                        masterScrollArea.classList.add('hidden');
-                        masterSelectHelpText.classList.add('invisible');
-                    }
-                }
-            }
-        });
-    </script>
+    @vite(['resources/css/shift.css', 'resources/js/shift.js'])
 </x-app-layout>
