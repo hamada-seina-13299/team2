@@ -15,12 +15,17 @@ class Shift extends Model
     protected $fillable = [
         'user_id',
         'master_id',
+        'memo',
+        'attendance_edit',
+        'leaving_edit',
         'target_date',
         'status',
     ];
 
     protected $casts = [
         'target_date' => 'date',
+        'attendance_edit' => 'datetime:H:i',
+        'leaving_edit' => 'datetime:H:i',
     ];
 
     public function user(): BelongsTo
