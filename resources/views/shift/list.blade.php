@@ -134,7 +134,7 @@
     </div>
 
     {{-- シフト追加モーダル --}}
-    <div id="addModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+    <div id="addModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-[999] p-4">
         <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
 
             <div class="flex justify-between items-center mb-4 flex-shrink-0">
