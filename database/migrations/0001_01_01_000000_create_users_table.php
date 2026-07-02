@@ -15,6 +15,7 @@ return new class extends Migration
             $table->string('password', 255);
             $table->string('dept')->nullable();
             $table->date('entering_company_date');
+            $table->boolean('can_auto_break')->default(true);
             $table->timestamps();
         });
         
