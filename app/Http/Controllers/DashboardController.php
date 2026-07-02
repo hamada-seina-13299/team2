@@ -3,66 +3,69 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB; // あるいは該当するModel（例: Attendance）
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
-    // 開発中の暫定ユーザーID
-    private $mockUserId = 1;
-
+   
     /**
      * ダッシュボード画面表示
      */
     public function index()
     {
-        $userId = $this->mockUserId; // 本番時は Auth::id() に差し替え
+        
+        if (!session()->has('user_id')) {
+            session([
+                'user_id' => 1,
+                'user_name' => '接諸 照須人'
+            ]);
+        }
+
+        $userId = session('user_id');
         $today = Carbon::today()->format('Y-m-d');
         $now = Carbon::now()->format('H:i');
 
-        // 1. 本日の勤怠レコードを取得（ボタンの活性・非活性判定用）
-        $todayAttendance = DB::table('workings') // テーブル名は実際の名称に合わせてください
+        // 7日前までの日付を取得
+        $sevenDaysAgo = Carbon::today()->subDays(7)->format('Y-m-d');
+
+        // 本日の勤怠レコードを取得
+        $todayAttendance = DB::table('workings')
             ->where('user_id', $userId)
             ->where('punch_date', $today)
             ->first();
 
-        // 2. 履歴一覧を取得
+        // 履歴一覧を今日から7日前までに限定
         $history = DB::table('workings')
             ->where('user_id', $userId)
+            ->where('punch_date', '>=', $sevenDaysAgo)
             ->orderBy('punch_date', 'desc')
             ->get();
 
-        // 3. ビューにデータを渡す
-        return view('dashboard.dashboard', compact('now', 'todayAttendance', 'history'));
+        return view('dashboard/dashboard', compact('now', 'todayAttendance', 'history'));
     }
 
     /**
-     * 出勤打刻
+     * 出勤打刻 (変更なし)
      */
     public function clockIn(Request $request)
     {
-        $userId = $this->mockUserId;
+        $userId = session('user_id');
         $today = Carbon::today()->format('Y-m-d');
         $now = Carbon::now()->format('H:i:s');
 
-        // 二重打刻防止のバックエンド側バリデーション
-        $exists = DB::table('workings')
-            ->where('user_id', $userId)
-            ->where('punch_date', $today)
-            ->exists();
-
+        $exists = DB::table('workings')->where('user_id', $userId)->where('punch_date', $today)->exists();
         if ($exists) {
             return redirect()->back()->with('error', '本日はすでに出勤打刻済みです。');
         }
 
-        // データの新規作成
         DB::table('workings')->insert([
             'user_id' => $userId,
             'punch_date' => $today,
             'attendance' => $now,
             'leaving' => null,
             'break_time' => null,
-            'working_place' => '本社', // シフト連動ができるまでは固定値などで対応
+            'working_place' => '本社',
             'commute' => 0,
             'status' => '未申請',
             'created_at' => Carbon::now(),
@@ -73,21 +76,15 @@ class DashboardController extends Controller
     }
 
     /**
-     * 退勤打刻
+     * 退勤打刻 (変更なし)
      */
     public function clockOut(Request $request)
     {
-        $userId = $this->mockUserId;
+        $userId = session('user_id');
         $today = Carbon::today()->format('Y-m-d');
         $now = Carbon::now()->format('H:i:s');
 
-        // 本日の出勤レコードがあるか確認
-        $working = DB::table('workings')
-            ->where('user_id', $userId)
-            ->where('punch_date', $today)
-            ->first();
-
-        // 出勤レコードがない、またはすでに退勤済みの場合はエラー
+        $working = DB::table('workings')->where('user_id', $userId)->where('punch_date', $today)->first();
         if (!$working) {
             return redirect()->back()->with('error', '出勤データが見つかりません。');
         }
@@ -95,14 +92,71 @@ class DashboardController extends Controller
             return redirect()->back()->with('error', 'すでに退勤打刻済みです。');
         }
 
-        // 退勤時刻を更新
-        DB::table('workings')
-            ->where('id', $working->id)
-            ->update([
-                'leaving' => $now,
-                'updated_at' => Carbon::now(),
-            ]);
+        DB::table('workings')->where('id', $working->id)->update([
+            'leaving' => $now,
+            'updated_at' => Carbon::now(),
+        ]);
 
         return redirect()->route('dashboard')->with('success', '退勤しました。');
+    }
+
+    /**
+     * 打刻修正申請
+     */
+    public function updateCorrection(Request $request)
+    {
+        $userId = session('user_id');
+        $targetDate = $request->input('target_date'); 
+
+        $deleteAttendance = $request->has('delete_attendance');
+        $deleteLeaving    = $request->has('delete_leaving');
+
+        $attendanceTime = $request->input('attendance_time');
+        $attendance = (!empty($attendanceTime) && !$deleteAttendance) ? Carbon::parse($attendanceTime)->format('H:i:s') : null;
+
+        $leavingTime = $request->input('leaving_time');
+        $leaving = (!empty($leavingTime) && !$deleteLeaving) ? Carbon::parse($leavingTime)->format('H:i:s') : null;
+
+        $workingPlace = $request->input('working_place', '本社');
+
+        $existingRecord = DB::table('workings')
+            ->where('user_id', $userId)
+            ->where('punch_date', $targetDate)
+            ->first();
+
+        // 両方削除、またはデータが空なら物理削除
+        if (($deleteAttendance && $deleteLeaving) || (is_null($attendance) && is_null($leaving))) {
+            if ($existingRecord) {
+                DB::table('workings')->where('id', $existingRecord->id)->delete();
+            }
+            return redirect()->route('dashboard')->with('success', '打刻情報を削除しました。');
+        }
+
+        if ($existingRecord) {
+            DB::table('workings')
+                ->where('id', $existingRecord->id)
+                ->update([
+                    'attendance'    => $attendance,
+                    'leaving'       => $leaving,
+                    'working_place' => $workingPlace,
+                    'status'        => '承認済み',
+                    'updated_at'    => Carbon::now(),
+                ]);
+        } else {
+            DB::table('workings')->insert([
+                'user_id'       => $userId,
+                'punch_date'    => $targetDate,
+                'attendance'    => $attendance,
+                'leaving'       => $leaving,
+                'break_time'    => null,
+                'working_place' => $workingPlace,
+                'commute'       => 0,
+                'status'        => '承認済み',
+                'created_at'    => Carbon::now(),
+                'updated_at'    => Carbon::now(),
+            ]);
+        }
+
+        return redirect()->route('dashboard')->with('success', '打刻情報を修正しました。');
     }
 }

@@ -14,3 +14,6 @@ Route::prefix('clock')->name('clock.')->group(function () {
     // 退勤打刻
     Route::post('/out', [DashboardController::class, 'clockOut'])->name('out');
 });
+    
+//打刻修正申請用のルート
+Route::post('/dashboard/correct', [DashboardController::class, 'updateCorrection'])->name('clock.correct');
