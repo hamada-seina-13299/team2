@@ -20,6 +20,9 @@ class UserSeeder extends Seeder
             'password' => Hash::make('password'),
             'dept' => '開発部',
             'entering_company_date' => '2005-01-02',
+            'can_auto_break' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
     }
 }

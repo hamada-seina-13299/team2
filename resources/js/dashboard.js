@@ -21,8 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fixForm = document.getElementById('modal-fix-form');
     const tbody = document.getElementById('modal-table-tbody');
     const btnAddRow = document.getElementById('btn-add-punch-row');
-    
-    // 💡 ID取得の記述不備を修正しました
+
     const btnPrev = document.getElementById('btn-modal-prev');
     const btnNext = document.getElementById('btn-modal-next');
 
@@ -36,7 +35,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 固定（初期）要素
     const elements = {
         attTime: document.getElementById('modal-attendance-time'),
-        workingPlace: document.getElementById('modal-working-place'),
         attReason: document.getElementById('modal-attendance-reason'),
         deleteAtt: document.querySelector('input[name="delete_attendance"]'),
         errAttendance: document.getElementById('error-attendance'),
@@ -53,10 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!elements.attTime) return true;
 
-        // 1. 固定の出勤行チェック
+        // 1. 固定の出勤行チェック（※勤務地チェックを排除しました）
         const isAttChanged = elements.attTime.value !== elements.attTime.getAttribute('data-init') ||
-                             elements.workingPlace.value !== elements.workingPlace.getAttribute('data-init') ||
-                             (elements.deleteAtt && elements.deleteAtt.checked);
+            (elements.deleteAtt && elements.deleteAtt.checked);
         if (isAttChanged && elements.attReason.value.trim() === '') {
             if (elements.errAttendance) elements.errAttendance.style.display = 'block';
             elements.attReason.style.borderColor = '#ef4444';
@@ -68,8 +65,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 2. 固定の退勤行チェック
         const isLeaveChanged = elements.leavingTime.value !== elements.leavingTime.getAttribute('data-init') ||
-                               elements.breakAuto.value !== elements.breakAuto.getAttribute('data-init') ||
-                               (elements.deleteLeaving && elements.deleteLeaving.checked);
+            elements.breakAuto.value !== elements.breakAuto.getAttribute('data-init') ||
+            (elements.deleteLeaving && elements.deleteLeaving.checked);
         if (isLeaveChanged && elements.leavingReason.value.trim() === '') {
             if (elements.errLeaving) elements.errLeaving.style.display = 'block';
             elements.leavingReason.style.borderColor = '#ef4444';
@@ -109,18 +106,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return isAllValid;
     }
 
-    // 💡 前日・翌日ボタンの活性・非活性（白黒化）制御
+    // 💡 前日・翌日ボタンの活性・非活性制御
     function updatePrevNextButtons() {
         if (!btnPrev || !btnNext) return;
-        
-        // 前のデータ（より古い日付。配列の後方）があるか
+
         if (currentDataIndex >= availableDates.length - 1) {
             btnPrev.disabled = true;
         } else {
             btnPrev.disabled = false;
         }
 
-        // 次のデータ（より新しい日付。配列の前方）があるか
         if (currentDataIndex <= 0) {
             btnNext.disabled = true;
         } else {
@@ -134,22 +129,19 @@ document.addEventListener('DOMContentLoaded', () => {
         currentDataIndex = index;
         const targetDate = availableDates[currentDataIndex];
 
-        // 対応する履歴のトリガー要素を画面上から探索してデータを抽出
         const trigger = document.querySelector(`.btn-edit-trigger[data-date="${targetDate}"]`);
         if (!trigger) return;
 
         const targetDateLabel = trigger.getAttribute('data-date-label');
         const attendanceTime = trigger.getAttribute('data-attendance');
         const leavingTime = trigger.getAttribute('data-leaving');
-        const workingPlace = trigger.getAttribute('data-place');
 
         // モーダル各部に流し込み
         document.getElementById('modal-target-date-input').value = targetDate;
         document.getElementById('modal-target-date-label').textContent = targetDateLabel;
-        
+
         elements.attTime.value = attendanceTime;
         elements.leavingTime.value = leavingTime;
-        elements.workingPlace.value = workingPlace || '本社';
         elements.breakAuto.value = 'OFF';
 
         if (elements.deleteAtt) elements.deleteAtt.checked = false;
@@ -159,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 初期状態として記憶
         elements.attTime.setAttribute('data-init', attendanceTime);
-        elements.workingPlace.setAttribute('data-init', workingPlace || '本社');
         elements.leavingTime.setAttribute('data-init', leavingTime);
         elements.breakAuto.setAttribute('data-init', 'OFF');
 
@@ -222,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <input type="time" name="dynamic_time[]" class="modal-input row-time-input watch-change">
                 <div class="dynamic-time-error-msg" style="color: #ef4444; font-size: 11px; margin-top: 4px; display: none;">※打刻時間を入力してください</div>
             </td>
-            <td>-</td>
+            <td class="row-working-place-cell">-</td>
             <td style="text-align: left;">
                 <input type="text" name="dynamic_reason[]" class="modal-input row-reason-input reason-input" placeholder="例: 申請理由を入力してください">
                 <div class="dynamic-error-msg" style="color: #ef4444; font-size: 11px; margin-top: 4px; display: none;">※申請理由を入力してください</div>
@@ -232,6 +223,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button type="button" class="btn-row-delete">❌</button>
             </td>
         `;
+
+        const typeSelect = tr.querySelector('.row-type-select');
+        const placeCell = tr.querySelector('.row-working-place-cell');
+
+        typeSelect.addEventListener('change', () => {
+            if (typeSelect.value === '勤務地変更') {
+                const placesDataEl = document.getElementById('available-places-data');
+                const availablePlaces = placesDataEl ? JSON.parse(placesDataEl.getAttribute('data-places')) : ['本社', '在宅'];
+
+                let selectHtml = `<select name="dynamic_working_place[]" class="modal-select watch-change">`;
+                availablePlaces.forEach(place => {
+                    selectHtml += `<option value="${place}">${place}</option>`;
+                });
+                selectHtml += `</select>`;
+
+                placeCell.innerHTML = selectHtml;
+
+                const newSelect = placeCell.querySelector('select');
+                newSelect.addEventListener('change', checkFormValidation);
+            } else {
+                placeCell.innerHTML = '-';
+            }
+            checkFormValidation();
+        });
 
         // ❌行削除ボタンの動作紐付け
         tr.querySelector('.btn-row-delete').addEventListener('click', () => {
@@ -246,6 +261,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         tbody.appendChild(tr);
+
+        typeSelect.dispatchEvent(new Event('change'));
         checkFormValidation();
     });
 
@@ -270,4 +287,41 @@ document.addEventListener('DOMContentLoaded', () => {
     modalOverlay.addEventListener('click', (e) => {
         if (e.target === modalOverlay) modalOverlay.classList.remove('is-open');
     });
+});
+
+// ==========================================================================
+// 🔗 メイン画面の「変更」リンクとの連動処理
+// ==========================================================================
+document.addEventListener('DOMContentLoaded', function () {
+    const locationChangeBtn = document.getElementById('trigger-location-change');
+
+    if (locationChangeBtn) {
+        locationChangeBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+
+            const modal = document.getElementById('fix-modal-overlay');
+            if (modal) {
+                modal.classList.add('is-open');
+
+                const mainTrigger = document.querySelector('.bottom-actions .btn-edit-trigger');
+                if (mainTrigger) {
+                    mainTrigger.click();
+                }
+            }
+
+            setTimeout(() => {
+                const addRowBtn = document.getElementById('btn-add-punch-row');
+                if (addRowBtn) {
+                    addRowBtn.click();
+                }
+
+                const typeSelects = document.querySelectorAll('.modal-select');
+                if (typeSelects.length > 0) {
+                    const lastSelect = typeSelects[typeSelects.length - 1];
+                    lastSelect.value = '勤務地変更';
+                    lastSelect.dispatchEvent(new Event('change'));
+                }
+            }, 100);
+        });
+    }
 });

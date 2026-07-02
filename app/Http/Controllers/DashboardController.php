@@ -15,26 +15,51 @@ class DashboardController extends Controller
      */
     public function index()
     {
-
-        // 💡 session('user_id') ではなく、Auth機能から現在ログイン中のユーザーIDを取得します
         $userId = Auth::id();
 
-        // ログインしていない場合はログイン画面へリダイレクト
         if (!$userId) {
             return redirect()->route('login');
         }
 
         $today = Carbon::today()->format('Y-m-d');
         $now = Carbon::now()->format('H:i');
-
-        // 7日前までの日付を取得
         $sevenDaysAgo = Carbon::today()->subDays(7)->format('Y-m-d');
 
-        // 本日の勤怠レコードを取得
+        // 本日の勤怠レコードを取得（打刻ボタンの制御用）
         $todayAttendance = DB::table('workings')
             ->where('user_id', $userId)
             ->where('punch_date', $today)
             ->first();
+
+        // 本日のシフト情報を取得
+        $todayShift = DB::table('shifts')
+            ->join('shift_masters', 'shifts.master_id', '=', 'shift_masters.id')
+            ->where('shifts.user_id', $userId)
+            ->where('shifts.target_date', $today)
+            ->where('shifts.status', '承認')
+            ->select('shift_masters.name as master_name', 'shift_masters.attendance', 'shift_masters.leaving', 'shift_masters.break_time', 'shift_masters.working_place')
+            ->first();
+
+        // ユーザーが選択可能な勤務地リストをシフトマスタから取得
+        // user_id が自分のもの、または Null（共通）の勤務地を取得して重複を排除
+        $workingPlaces = DB::table('shift_masters')
+            ->where('user_id', $userId)
+            ->orWhereNull('user_id')
+            ->pluck('working_place')
+            ->unique()
+            ->filter() // 空値を除外
+            ->values()
+            ->all();
+
+        // 勤務地決定ロジック
+        $displayWorkingPlace = '未定';
+        if ($todayAttendance && !empty($todayAttendance->working_place)) {
+            // 1. 実勤務地があれば最優先
+            $displayWorkingPlace = $todayAttendance->working_place;
+        } elseif ($todayShift && !empty($todayShift->working_place)) {
+            // 2. 実勤務地がNullならシフトの予定勤務地（本社(在宅)など）
+            $displayWorkingPlace = $todayShift->working_place;
+        }
 
         // 履歴一覧を今日から7日前までに限定
         $history = DB::table('workings')
@@ -43,11 +68,12 @@ class DashboardController extends Controller
             ->orderBy('punch_date', 'desc')
             ->get();
 
-        return view('dashboard/dashboard', compact('now', 'todayAttendance', 'history'));
+        // ビューに渡す
+        return view('dashboard/dashboard', compact('now', 'todayAttendance', 'todayShift', 'history', 'displayWorkingPlace', 'workingPlaces'));
     }
 
     /**
-     * 出勤打刻 (変更なし)
+     * 出勤打刻
      */
     public function clockIn(Request $request)
     {
@@ -66,7 +92,7 @@ class DashboardController extends Controller
             'attendance' => $now,
             'leaving' => null,
             'break_time' => null,
-            'working_place' => '本社',
+            'working_place' => null,
             'commute' => 0,
             'status' => '未申請',
             'created_at' => Carbon::now(),
@@ -77,7 +103,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * 退勤打刻 (変更なし)
+     * 退勤打刻
      */
     public function clockOut(Request $request)
     {

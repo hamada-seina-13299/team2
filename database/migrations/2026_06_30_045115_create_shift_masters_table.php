@@ -14,6 +14,7 @@ return new class extends Migration
             $table->string('name');
             $table->time('attendance');
             $table->time('leaving');
+            $table->time('break_start_time');
             $table->time('break_time');
             $table->string('working_place');
             $table->timestamps();
