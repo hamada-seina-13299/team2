@@ -3,7 +3,7 @@
     <div class="user-info">
         <a href="#" class="header-icon-link">❓</a> 
         <span class="user-name">
-            <a href="#" class="header-user-link">{{ session('user_name', '接諸 照須人') }}</a>
+            <a href="#" class="header-user-link">{{ Auth::user() ? Auth::user()->name : 'ゲスト' }}</a>
         </span>さん
     </div>
 </header>

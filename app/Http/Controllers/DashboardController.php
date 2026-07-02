@@ -5,24 +5,25 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
-   
+
     /**
      * ダッシュボード画面表示
      */
     public function index()
     {
-        
-        if (!session()->has('user_id')) {
-            session([
-                'user_id' => 1,
-                'user_name' => '接諸 照須人'
-            ]);
+
+        // 💡 session('user_id') ではなく、Auth機能から現在ログイン中のユーザーIDを取得します
+        $userId = Auth::id();
+
+        // ログインしていない場合はログイン画面へリダイレクト
+        if (!$userId) {
+            return redirect()->route('login');
         }
 
-        $userId = session('user_id');
         $today = Carbon::today()->format('Y-m-d');
         $now = Carbon::now()->format('H:i');
 
@@ -50,7 +51,7 @@ class DashboardController extends Controller
      */
     public function clockIn(Request $request)
     {
-        $userId = session('user_id');
+        $userId = Auth::id();
         $today = Carbon::today()->format('Y-m-d');
         $now = Carbon::now()->format('H:i:s');
 
@@ -80,7 +81,7 @@ class DashboardController extends Controller
      */
     public function clockOut(Request $request)
     {
-        $userId = session('user_id');
+        $userId = Auth::id();
         $today = Carbon::today()->format('Y-m-d');
         $now = Carbon::now()->format('H:i:s');
 
@@ -105,8 +106,8 @@ class DashboardController extends Controller
      */
     public function updateCorrection(Request $request)
     {
-        $userId = session('user_id');
-        $targetDate = $request->input('target_date'); 
+        $userId = Auth::id();
+        $targetDate = $request->input('target_date');
 
         $deleteAttendance = $request->has('delete_attendance');
         $deleteLeaving    = $request->has('delete_leaving');
