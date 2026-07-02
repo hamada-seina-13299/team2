@@ -1,6 +1,5 @@
 <x-app-layout>
     <div class="w-full p-6 bg-gray-50 min-h-screen">
-        
         <h1 class="text-lg font-bold mb-2 text-gray-800">シフト一覧</h1>
 
         <div class="flex items-center gap-4 mb-6">
@@ -17,6 +16,13 @@
             </div>
             <span class="text-gray-400 text-lg font-medium self-end mb-1">{{ $year }}年</span>
         </div>
+
+        {{-- 成功フラッシュメッセージ表示 --}}
+        @if (session('success'))
+            <div class="mb-4 p-4 bg-emerald-100 text-emerald-700 rounded-xl font-semibold shadow-sm text-sm">
+                {{ session('success') }}
+            </div>
+        @endif
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto w-full">
             <table class="w-full border-collapse table-fixed min-w-[650px]">
@@ -87,7 +93,6 @@
                             </td>
                             <td class="p-3 text-sm text-center align-middle">
                                 @if($day['shift'])
-                                    {{-- ボタンの見た目のまま、修正画面へのリンクに書き換えます --}}
                                     <a href="{{ route('shiftcorrection.index', ['shift_id' => $day['shift']->id]) }}" class="btn-edit inline-block text-center">
                                         修正
                                     </a>
@@ -140,10 +145,12 @@
 
                 <form id="shiftAddForm" action="{{ route('shift.store') }}" method="POST">
                     @csrf
+                    {{-- 💡 現在のフォームモードを送信するための隠しフィールド --}}
+                    <input type="hidden" id="formMode" name="form_mode" value="{{ old('form_mode', 'select') }}">
 
                     <div id="modalTargetDateGroup" class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-1">対象日 <span class="text-red-500">*</span></label>
-                        <input type="date" id="modalTargetDate" name="target_date" 
+                        <input type="date" id="modalTargetDate" name="target_date" value="{{ old('target_date') }}"
                                class="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-gray-800 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none text-sm">
                     </div>
 
@@ -194,42 +201,35 @@
                         <input type="hidden" id="masterSelect" name="master_id" value="{{ old('master_id') }}">
 
                         <div id="newMasterFields" class="hidden border rounded-xl p-4 bg-gray-50 mt-3 shadow-inner">
-                            <p class="text-xs font-bold text-emerald-600 mb-3">✨ 新しい勤務地マスタを登録します</p>
+                            <p class="text-xs font-bold text-emerald-600 mb-3">新しい勤務地マスタを登録します</p>
 
                             <div class="mb-3">
                                 <label class="block mb-1 text-xs font-medium text-gray-700">勤務地名 <span class="text-red-500">*</span></label>
                                 <input type="text" name="new_working_place" value="{{ old('new_working_place') }}" class="w-full border rounded-lg p-2 bg-white text-sm">
-                                @error('new_working_place') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
                             </div>
 
-                            <div class="flex gap-4 mb-4">
+                            <div class="flex gap-4 mb-3">
                                 <div class="flex-1">
                                     <label class="block mb-1 text-xs font-medium text-gray-700">出勤時刻 <span class="text-red-500">*</span></label>
                                     <input type="time" name="new_attendance" value="{{ old('new_attendance') }}" class="w-full border rounded-lg p-2 bg-white text-sm">
-                                    @error('new_attendance') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
                                 </div>
                                 <div class="flex-1">
                                     <label class="block mb-1 text-xs font-medium text-gray-700">退勤時刻 <span class="text-red-500">*</span></label>
                                     <input type="time" name="new_leaving" value="{{ old('new_leaving') }}" class="w-full border rounded-lg p-2 bg-white text-sm">
-                                    @error('new_leaving') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
                                 </div>
                             </div>
 
                             <div class="mb-4">
                                 <label class="block mb-1 text-xs font-medium text-gray-700">休憩時間</label>
-                                <input type="time" name="new_break_time" value="{{ old('new_break_time') }}" class="w-full border rounded-lg p-2 bg-white text-sm">
-                            </div>
-
-                            <div class="text-right">
-                                <button type="submit" name="action" value="create_master"
-                                    class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow transition-colors">
-                                    上記の入力内容でマスタを登録する
-                                </button>
+                                <select name="new_break_time" class="w-full border border-gray-300 rounded-lg p-2 bg-white text-sm outline-none shadow-sm focus:border-blue-500 transition-all">
+                                    <option value="01:00" {{ old('new_break_time', '01:00') == '01:00' ? 'selected' : '' }}>1時間休憩をつける</option>
+                                    <option value="00:00" {{ old('new_break_time') == '00:00' ? 'selected' : '' }}>つけない</option>
+                                </select>
                             </div>
                         </div>
                     </div>
 
-                    <div class="flex gap-4 mb-2">
+                    <div id="displayTimeGroup" class="flex gap-4 mb-2">
                         <div class="flex-1">
                             <label class="block mb-1 text-xs text-gray-400">出勤時刻(表示用)</label>
                             <input type="time" id="attendanceDisplay" disabled class="w-full border rounded-lg p-2 bg-gray-100 text-gray-500 text-sm">
@@ -243,25 +243,32 @@
             </div>
 
             <div class="border-t pt-4 bg-white flex-shrink-0">
-                <button type="submit" form="shiftAddForm"
+                <button type="submit" id="submitShiftBtn" form="shiftAddForm"
                     class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-xl text-sm shadow-md hover:shadow-lg transition-all text-center block">
                     ＋ シフトを追加する
+                </button>
+
+                <button type="submit" id="submitMasterBtn" form="shiftAddForm"
+                    class="w-full hidden bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-5 rounded-xl text-sm shadow-md hover:shadow-lg transition-all text-center block">
+                    上記の入力内容でマスタを登録し、シフトに追加
                 </button>
             </div>
         </div>
     </div>
 
-    {{-- マスタ削除用フォーム --}}
     <form id="masterDeleteForm" action="{{ route('shift.master.delete') }}" method="POST" class="hidden">
         @csrf
         @method('DELETE')
         <input type="hidden" id="deleteMasterId" name="master_id">
     </form>
 
-    {{-- エラー情報をJSに渡すための隠し要素 --}}
+    {{-- 💡 old('form_mode') が新規追加状態だった場合のみ、新規の入力エラー欄を展開するよう厳格化 --}}
     <span id="error-data"
         data-has-errors="{{ $errors->any() ? 'true' : 'false' }}"
-        data-has-fields-error="{{ ($errors->has('new_working_place') || $errors->has('new_attendance') || $errors->has('new_leaving')) ? 'true' : 'false' }}"
+        data-has-fields-error="{{ (old('form_mode') === 'new_master' && ($errors->has('new_working_place') || $errors->has('new_attendance') || $errors->has('new_leaving'))) ? 'true' : 'false' }}"
+        data-saved-date="{{ old('target_date') }}"
+        data-is-bulk="{{ old('target_dates') ? 'true' : 'false' }}"
+        data-bulk-count="{{ old('target_dates') ? count(old('target_dates')) : 0 }}"
         class="hidden">
     </span>
 
