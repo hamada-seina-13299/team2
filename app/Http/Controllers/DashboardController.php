@@ -15,14 +15,12 @@ class DashboardController extends Controller
     public function index()
     {
         
-        if (!session()->has('user_id')) {
-            session([
-                'user_id' => 1,
-                'user_name' => '接諸 照須人'
-            ]);
+        $userId = session('user_id');
+
+        if (!$userId) {
+            return redirect()->route('login');
         }
 
-        $userId = session('user_id');
         $today = Carbon::today()->format('Y-m-d');
         $now = Carbon::now()->format('H:i');
 
