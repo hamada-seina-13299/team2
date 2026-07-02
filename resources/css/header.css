@@ -1,0 +1,54 @@
+@charset "UTF-8";
+
+/* 上部：お知らせ・ユーザー情報ヘッダー（スクロール固定化） */
+.top-header {
+    height: 50px;
+    background-color: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 24px;
+    font-size: 14px;
+    
+    /* 💡 ヘッダーを上部に固定する記述を追加 */
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 60px; /* 左側の固定サイドバーの幅(60px)を避けて配置 */
+    z-index: 80; /* サイドバー(z-index: 90)の少し下に重ねる */
+}
+
+.notice-link {
+    color: #26d0ce;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.user-info {
+    color: #4b5563;
+}
+
+.user-name {
+    color: #26d0ce;
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+/* ==========================================================================
+   💡 ヘッダー内 追加リンク用スタイル
+   ========================================================================== */
+.header-icon-link, 
+.header-user-link {
+    color: inherit;
+    text-decoration: none;
+    display: inline-block;
+    transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+/* ❓マークやユーザー名にマウスを乗せたときに下線を表示 */
+.header-icon-link:hover, 
+.header-user-link:hover {
+    color: #1aaba8; /* ホバー時に少し濃い青緑にしてメリハリを付与 */
+    text-decoration: underline;
+}
