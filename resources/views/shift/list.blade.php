@@ -1,4 +1,14 @@
-<x-app-layout>
+@extends('layouts.app')
+
+@section('title', 'シフト一覧 | 勤怠管理システム')
+
+{{-- 💡 必要なスタイルシートを親の @stack('styles') に送り込む --}}
+@push('styles')
+    <script src="https://cdn.tailwindcss.com"></script>
+    @vite(['resources/css/shift.css'])
+@endpush
+
+@section('content')
     <div class="w-full p-6 bg-gray-50 min-h-screen">
         <h1 class="text-lg font-bold mb-2 text-gray-800">シフト一覧</h1>
 
@@ -145,7 +155,6 @@
 
                 <form id="shiftAddForm" action="{{ route('shift.store') }}" method="POST">
                     @csrf
-                    {{-- 💡 現在のフォームモードを送信するための隠しフィールド --}}
                     <input type="hidden" id="formMode" name="form_mode" value="{{ old('form_mode', 'select') }}">
 
                     <div id="modalTargetDateGroup" class="mb-4">
@@ -262,7 +271,6 @@
         <input type="hidden" id="deleteMasterId" name="master_id">
     </form>
 
-    {{-- 💡 old('form_mode') が新規追加状態だった場合のみ、新規の入力エラー欄を展開するよう厳格化 --}}
     <span id="error-data"
         data-has-errors="{{ $errors->any() ? 'true' : 'false' }}"
         data-has-fields-error="{{ (old('form_mode') === 'new_master' && ($errors->has('new_working_place') || $errors->has('new_attendance') || $errors->has('new_leaving'))) ? 'true' : 'false' }}"
@@ -277,6 +285,9 @@
             選択した <span id="selectedCount" class="underline font-extrabold mx-0.5">0</span> 日分をまとめて追加
         </button>
     </div>
+@endsection
 
-    @vite(['resources/css/shift.css', 'resources/js/shift.js'])
-</x-app-layout>
+{{-- 💡 JavaScriptを親の @stack('scripts') に送り込む --}}
+@push('scripts')
+    @vite(['resources/js/shift.js'])
+@endpush
