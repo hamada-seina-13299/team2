@@ -215,14 +215,14 @@
         @endif
 
         <div class="row">
-            {{-- ⭕ 改善点1: 対象日選択フォーム（ここで一度閉じます。入れ子にしない） --}}
+            {{-- 対象日選択フォーム --}}
             <div class="col-12 mb-4">
-                <form method="GET" action="{{ route('shiftcorrection.index') }}" class="sc-date-row">
+                <form method="GET" action="{{ route('attendancecorrection.index') }}" class="sc-date-row" id="date_select_form">
                     <div>
                         <label for="target_date_select" class="form-label">対象日</label>
                         <input type="date" id="target_date_select" name="target_date" class="form-control"
                             value="{{ $targetDate }}"
-                            min="{{ now()->addDay()->format('Y-m-d') }}">
+                            max="{{ now()->format('Y-m-d') }}">
                     </div>
                     <button type="submit" class="btn btn-outline-secondary">表示</button>
                 </form>
@@ -291,15 +291,44 @@
                                 </select>
                             </div>
 
+                            {{-- 【追加・変更】自動初期値判定ロジック --}}
+                            @php
+                                // 対象日かつ「承認済み」の修正申請があるか探す
+                                $approvedCorrection = collect($corrections)->first(function($item) use ($targetDate) {
+                                    return \Carbon\Carbon::parse($item->target_date)->format('Y-m-d') === $targetDate && $item->status === 'approved';
+                                });
+
+                                // 出勤・退勤時刻の初期値セット（承認済み修正 > 実際の打刻実績 > 空）
+                                if ($approvedCorrection) {
+                                    $defaultAttendance = \Carbon\Carbon::parse($approvedCorrection->attendance_edit)->format('H:i');
+                                    $defaultLeaving = \Carbon\Carbon::parse($approvedCorrection->leaving_edit)->format('H:i');
+                                } elseif ($working) {
+                                    $defaultAttendance = $working->attendance ? \Carbon\Carbon::parse($working->attendance)->format('H:i') : '';
+                                    $defaultLeaving = $working->leaving ? \Carbon\Carbon::parse($working->leaving)->format('H:i') : '';
+                                } else {
+                                    $defaultAttendance = '';
+                                    $defaultLeaving = '';
+                                }
+
+                                // 勤務地の初期値セット（実際の打刻実績から取得）
+                                $defaultWorkingPlace = ($working && $working->working_place) ? $working->working_place : '';
+                            @endphp
+
                             <div class="row">
                                 <div class="col-6 mb-3">
                                     <label for="attendance_edit" class="form-label">修正後 出勤時刻 <span class="text-danger">*</span></label>
-                                    <input type="time" id="attendance_edit" name="attendance_edit" class="form-control" value="{{ old('attendance_edit') }}" required>
+                                    <input type="time" id="attendance_edit" name="attendance_edit" class="form-control" value="{{ old('attendance_edit', $defaultAttendance) }}" required>
                                 </div>
                                 <div class="col-6 mb-3">
                                     <label for="leaving_edit" class="form-label">修正後 退勤時刻 <span class="text-danger">*</span></label>
-                                    <input type="time" id="leaving_edit" name="leaving_edit" class="form-control" value="{{ old('leaving_edit') }}" required>
+                                    <input type="time" id="leaving_edit" name="leaving_edit" class="form-control" value="{{ old('leaving_edit', $defaultLeaving) }}" required>
                                 </div>
+                            </div>
+
+                            {{-- 【追加】勤務地の入力欄（打刻実績の勤務地を初期値として挿入、name属性等は現在の設計に合わせて適宜変更してください） --}}
+                            <div class="mb-3">
+                                <label for="working_place" class="form-label">勤務地</label>
+                                <input type="text" id="working_place" name="working_place" class="form-control" value="{{ old('working_place', $defaultWorkingPlace) }}" placeholder="例: 本社、リモートなど">
                             </div>
 
                             <div class="mb-3">
@@ -375,11 +404,23 @@
     </div>
 
     <script>
+        // シフトパターン変更時の処理（未選択時は空に戻すように安全ガードを適用）
         document.getElementById('master_id').addEventListener('change', function(e) {
             const option = e.target.selectedOptions[0];
-            if (!option || !option.value) return;
+            if (!option || !option.value) {
+                // シフトパターン未選択時は、自動セットした「実際の打刻時間・承認時間」を消さないようにするなら、ここを空欄にせず return のみに変更してください。
+                return;
+            }
             document.getElementById('attendance_edit').value = option.dataset.attendance || '';
             document.getElementById('leaving_edit').value = option.dataset.leaving || '';
+        });
+
+        // 対象日の日付が変更されたら、強制的に「勤怠修正」のURLへジャンプしてリロード
+        document.getElementById('target_date_select').addEventListener('change', function(e) {
+            const targetDate = e.target.value;
+            if (targetDate) {
+                window.location.href = "{{ route('attendancecorrection.index') }}?target_date=" + targetDate;
+            }
         });
     </script>
 </body>

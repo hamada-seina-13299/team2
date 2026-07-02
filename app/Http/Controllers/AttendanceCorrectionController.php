@@ -38,10 +38,11 @@ class AttendanceCorrectionController extends Controller
             ->orderBy('name')
             ->get();
 
-        // 自分が提出した「勤怠修正申請」の履歴（Shiftsテーブルを流用、または相方の設計に合わせる）
-        // ※今回は一旦Shiftモデルを流用していますが、チームで「勤怠修正用テーブル」を作る場合はここを差し替えてください
+        // 自分が提出した「勤怠修正申請」の履歴のみに絞り込む
+        // 変更点: whereNotNull('attendance_edit') を追加し、修正データのあるレコードのみを取得
         $corrections = Shift::where('user_id', $userId)
-            ->where('status', 'like', '%申請%') // 勤怠修正のレコードを識別するための条件など
+            ->whereNotNull('attendance_edit') 
+            ->where('status', 'like', '%申請%')
             ->orderByDesc('created_at')
             ->take(10)
             ->get();
@@ -67,17 +68,17 @@ class AttendanceCorrectionController extends Controller
             'leaving_edit'    => ['required'],
             'memo'            => ['required', 'string', 'max:255'],
         ], [
-            'target_date.required'     => '対象日を入力してください。',
+            'target_date.required'        => '対象日を入力してください。',
             'target_date.before_or_equal' => '勤怠修正申請は今日以前の日付のみ可能です。',
-            'master_id.required'       => 'シフトパターンを選択してください。',
-            'master_id.exists'         => '選択されたシフトパターンが存在しません。',
-            'attendance_edit.required' => '修正後の出勤時刻を入力してください。',
-            'leaving_edit.required'    => '修正後の退勤時刻を入力してください。',
-            'memo.required'            => '修正理由（メモ）を入力してください。',
-            'memo.max'                 => 'メモは255文字以内で入力してください。',
+            'master_id.required'          => 'シフトパターンを選択してください。',
+            'master_id.exists'            => '選択されたシフトパターンが存在しません。',
+            'attendance_edit.required'    => '修正後の出勤時刻を入力してください。',
+            'leaving_edit.required'       => '修正後の退勤時刻を入力してください。',
+            'memo.required'               => '修正理由（メモ）を入力してください。',
+            'memo.max'                    => 'メモは255文字以内で入力してください。',
         ]);
 
-        // データベースへ保存（ステータスはチームの日本語仕様に合わせて「申請中」）
+        // データベースへ保存（ステータスは「申請中」）
         Shift::create([
             'user_id'         => 1,
             'master_id'       => $validated['master_id'],
