@@ -22,13 +22,13 @@ return new class extends Migration
             $table->foreignId('master_id')->constrained('shift_masters')->onDelete('cascade');
  
             // メモ
-            $table->string('memo');
+            $table->string('memo')->nullable();
  
             // 修正後出勤時刻
-            $table->time('attendance_edit');
+            $table->time('attendance_edit')->nullable();
  
             // 修正後退勤時刻
-            $table->time('leaving_edit');
+            $table->time('leaving_edit')->nullable();
  
             // 対象日
             $table->date('target_date');
