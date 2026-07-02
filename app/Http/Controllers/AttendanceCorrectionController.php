@@ -4,70 +4,71 @@ namespace App\Http\Controllers;
 
 use App\Models\Shift;
 use App\Models\Shift_master;
+use App\Models\Working;
 use Illuminate\Http\Request;
 
-class ShiftCorrectionController extends Controller
+class AttendanceCorrectionController extends Controller
 {
     /**
-     * シフト修正画面を表示
+     * 勤怠修正画面を表示
      */
     public function index(Request $request)
     {
         // ▼動作確認用: ログイン機能が整うまでユーザーIDを1に固定
         $userId = 1;
 
-        // 対象日（指定がなければ明日）
-        $targetDate = $request->input('target_date', now()->addDay()->format('Y-m-d'));
+        // 対象日（指定がなければ当日。ただし未来の日は選べない）
+        $targetDate = $request->input('target_date', now()->format('Y-m-d'));
 
-        // 今日以前の日付が指定された場合は明日にリダイレクト（未来の予定修正に特化）
-        if ($targetDate <= now()->format('Y-m-d')) {
+        // 明日以降の未来の日付が指定された場合は当日にリダイレクト
+        if ($targetDate > now()->format('Y-m-d')) {
             return redirect()
-                ->route('shiftcorrection.index', ['target_date' => now()->addDay()->format('Y-m-d')])
-                ->with('error', 'シフト修正申請は明日以降の日付のみ可能です。');
+                ->route('attendancecorrection.index', ['target_date' => now()->format('Y-m-d')])
+                ->with('error', '勤怠修正申請は今日以前の過去の日付のみ可能です。');
         }
 
-        // 対象日にすでに登録されている最新のシフト（変更前の予定）を取得
-        $currentShift = Shift::where('user_id', $userId)
-            ->whereDate('target_date', $targetDate)
-            ->orderByDesc('created_at')
+        // 対象日の現在の打刻実績（実際の出勤・退勤時刻など）
+        $working = Working::where('user_id', $userId)
+            ->whereDate('punch_date', $targetDate)
             ->first();
 
-        // 選択可能なシフトマスタ（全社共通 + 自分専用）
+        // 選択可能なシフトマスタ（修正後のパターンの参考に表示用）
         $shiftMasters = Shift_master::whereNull('user_id')
             ->orWhere('user_id', $userId)
             ->orderBy('name')
             ->get();
 
-        // 自分が提出したシフト修正申請の履歴
-        $shifts = Shift::where('user_id', $userId)
+        // 自分が提出した「勤怠修正申請」の履歴（Shiftsテーブルを流用、または相方の設計に合わせる）
+        // ※今回は一旦Shiftモデルを流用していますが、チームで「勤怠修正用テーブル」を作る場合はここを差し替えてください
+        $corrections = Shift::where('user_id', $userId)
+            ->where('status', 'like', '%申請%') // 勤怠修正のレコードを識別するための条件など
             ->orderByDesc('created_at')
             ->take(10)
             ->get();
 
-        return view('shiftcorrection', [
+        return view('attendancecorrection', [
             'targetDate'     => $targetDate,
+            'working'        => $working,
             'shiftMasters'   => $shiftMasters,
-            'shiftMasterMap' => $shiftMasters->pluck('name', 'id'), // id => name の連想配列
-            'shifts'         => $shifts,
-            'currentShift'   => $currentShift, // 変更前の予定表示用
+            'shiftMasterMap' => $shiftMasters->pluck('name', 'id'),
+            'corrections'    => $corrections,
         ]);
     }
 
     /**
-     * シフト修正申請を登録
+     * 勤怠修正申請を登録
      */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'target_date'     => ['required', 'date', 'after:today'],
+            'target_date'     => ['required', 'date', 'before_or_equal:today'],
             'master_id'       => ['required', 'exists:shift_masters,id'],
-            // 秒数が混ざってもエラーにならないよう、規則を緩めるのとフォーマットを外す
             'attendance_edit' => ['required'], 
             'leaving_edit'    => ['required'],
             'memo'            => ['required', 'string', 'max:255'],
         ], [
             'target_date.required'     => '対象日を入力してください。',
-            'target_date.after'        => '修正申請は明日以降の日付のみ可能です。',
+            'target_date.before_or_equal' => '勤怠修正申請は今日以前の日付のみ可能です。',
             'master_id.required'       => 'シフトパターンを選択してください。',
             'master_id.exists'         => '選択されたシフトパターンが存在しません。',
             'attendance_edit.required' => '修正後の出勤時刻を入力してください。',
@@ -76,6 +77,7 @@ class ShiftCorrectionController extends Controller
             'memo.max'                 => 'メモは255文字以内で入力してください。',
         ]);
 
+        // データベースへ保存（ステータスはチームの日本語仕様に合わせて「申請中」）
         Shift::create([
             'user_id'         => 1,
             'master_id'       => $validated['master_id'],
@@ -87,24 +89,23 @@ class ShiftCorrectionController extends Controller
         ]);
 
         return redirect()
-            ->route('shiftcorrection.index', ['target_date' => $validated['target_date']])
-            ->with('success', 'シフト修正申請を送信しました。承認をお待ちください。');
+            ->route('attendancecorrection.index', ['target_date' => $validated['target_date']])
+            ->with('success', '勤怠修正申請を送信しました。承認をお待ちください。');
     }
 
     /**
-     * シフト修正申請の取り消し
+     * 勤怠修正申請の取り消し
      */
     public function destroy(Shift $shift)
     {
         abort_unless($shift->user_id === 1, 403);
 
-        // ここも「申請中」のときだけ消せるように揃えます
-        if ($shift->status !== '申請中' && $shift->status !== 'pending') {
+        if ($shift->status !== '申請中') {
             return back()->with('error', '承認・却下済みの申請は取り消せません。');
         }
 
         $shift->delete();
 
-        return back()->with('success', '修正申請を取り消しました。');
+        return back()->with('success', '勤怠修正申請を取り消しました。');
     }
 }

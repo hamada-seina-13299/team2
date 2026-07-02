@@ -9,3 +9,4 @@ Route::get('/', function () {
 // シフト修正画面の表示と処理
 Route::get('/shift/correction', [ShiftCorrectionController::class, 'index'])->name('shiftcorrection.index');
 Route::post('/shift/correction', [ShiftCorrectionController::class, 'store'])->name('shiftcorrection.store');
+Route::delete('/shift/correction/{shift}', [ShiftCorrectionController::class, 'destroy'])->name('shiftcorrection.destroy');

@@ -10,6 +10,7 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/login.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+
         then: function () {
             // shiftcorrection.php を追加
             Route::middleware('web')
@@ -18,6 +19,14 @@ return Application::configure(basePath: dirname(__DIR__))
             // dashboard.php を追加
             Route::middleware('web')
                 ->group(base_path('routes/dashboard.php'));
+
+            // shift.php を追加
+            Route::middleware('web')
+                ->group(base_path('routes/shift.php'));
+
+            // attendancecorrection.php を追加
+            Route::middleware('web')
+                ->group(base_path('routes/attendancecorrection.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {

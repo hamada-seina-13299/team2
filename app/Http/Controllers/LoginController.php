@@ -7,7 +7,7 @@ use Illuminate\Http\Request;    // ユーザからの入力を扱うためのツ
 use Illuminate\Support\Facades\Auth;    // ユーザの状態を管理・チェックする
 use Illuminate\Support\Facades\Hash;    // パスワードのハッシュ化
 
-class AccountController extends Controller
+class LoginController extends Controller
 {
     // ================================================
     // ログイン機能
@@ -74,8 +74,8 @@ class AccountController extends Controller
         // ログイン成功時：セッションの再作成
         $request->session()->regenerate();
 
-        // ログイン後、商品一覧画面に遷移
-        return redirect('/products');
+        // ログイン後、ダッシュボード画面に遷移
+        return redirect('/dashboard');
     }
 
 
