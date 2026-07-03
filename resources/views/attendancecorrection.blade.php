@@ -228,7 +228,7 @@
                 </form>
             </div>
 
-            {{-- 左側：実際の打刻実績 --}}
+            {{-- 左側：実際の打刻実績（右側の勤務地を削除） --}}
             <div class="col-md-6 mb-4">
                 <div class="card">
                     <div class="card-header">
@@ -241,9 +241,6 @@
                                 <span style="display: inline-block; width: 13px; height: 13px; background-color: #50E3C2; border-radius: 50%; flex-shrink: 0;"></span>
                                 <span style="color: #1F2933;">
                                     出勤: {{ \Carbon\Carbon::parse($working->attendance)->format('H:i') }}
-                                    @if($working->working_place)
-                                    ({{ $working->working_place }})
-                                    @endif
                                 </span>
                             </div>
                             <div class="d-flex align-items-center gap-2">
@@ -263,9 +260,7 @@
             {{-- 右側：勤怠修正申請フォーム --}}
             <div class="col-md-6 mb-4">
                 <div class="card">
-                    <div class="card-header">
-                        勤怠修正申請
-                    </div>
+                    <div class="card-header">勤怠修正申請</div>
                     <div class="card-body">
                         <form method="POST" action="{{ route('attendancecorrection.store') }}">
                             @csrf
@@ -277,42 +272,50 @@
                                     max="{{ now()->format('Y-m-d') }}" required>
                             </div>
 
+                            {{-- 自動初期値判定ロジック --}}
+                            @php
+                            // 1. 対象日かつ「承認済み」の修正申請があるか探す
+                            $approvedCorrection = collect($corrections)->first(function($item) use ($targetDate) {
+                            return \Carbon\Carbon::parse($item->target_date)->format('Y-m-d') === $targetDate && $item->status === 'approved';
+                            });
+
+                            // 2. 時間の初期値セット（承認済み修正 > 実際の打刻実績 > 空）
+                            if ($approvedCorrection) {
+                            $defaultAttendance = \Carbon\Carbon::parse($approvedCorrection->attendance_edit)->format('H:i');
+                            $defaultLeaving = \Carbon\Carbon::parse($approvedCorrection->leaving_edit)->format('H:i');
+                            } elseif ($working) {
+                            $defaultAttendance = $working->attendance ? \Carbon\Carbon::parse($working->attendance)->format('H:i') : '';
+                            $defaultLeaving = $working->leaving ? \Carbon\Carbon::parse($working->leaving)->format('H:i') : '';
+                            } else {
+                            $defaultAttendance = '';
+                            $defaultLeaving = '';
+                            }
+
+                            // 3. 最初から選択状態にするシフトパターンIDの判定（承認済み修正のID > 打刻実績のID > 現在のシフトのID）
+                            if ($approvedCorrection) {
+                            $selectedMasterId = $approvedCorrection->master_id;
+                            } elseif ($working && isset($working->master_id)) {
+                            $selectedMasterId = $working->master_id;
+                            } else {
+                            $selectedMasterId = $currentShift->master_id ?? null;
+                            }
+                            @endphp
+
                             <div class="mb-3">
                                 <label for="master_id" class="form-label">シフトパターン <span class="text-danger">*</span></label>
                                 <select id="master_id" name="master_id" class="form-select" required>
                                     <option value="">選択してください</option>
                                     @foreach ($shiftMasters as $master)
+                                    {{-- ここで対象のシフトパターンを selected にする --}}
                                     <option value="{{ $master->id }}"
                                         data-attendance="{{ \Carbon\Carbon::parse($master->attendance)->format('H:i') }}"
-                                        data-leaving="{{ \Carbon\Carbon::parse($master->leaving)->format('H:i') }}">
+                                        data-leaving="{{ \Carbon\Carbon::parse($master->leaving)->format('H:i') }}"
+                                        {{ old('master_id', $selectedMasterId) == $master->id ? 'selected' : '' }}>
                                         {{ $master->name }} ({{ \Carbon\Carbon::parse($master->attendance)->format('H:i') }}〜)
                                     </option>
                                     @endforeach
                                 </select>
                             </div>
-
-                            {{-- 【追加・変更】自動初期値判定ロジック --}}
-                            @php
-                                // 対象日かつ「承認済み」の修正申請があるか探す
-                                $approvedCorrection = collect($corrections)->first(function($item) use ($targetDate) {
-                                    return \Carbon\Carbon::parse($item->target_date)->format('Y-m-d') === $targetDate && $item->status === 'approved';
-                                });
-
-                                // 出勤・退勤時刻の初期値セット（承認済み修正 > 実際の打刻実績 > 空）
-                                if ($approvedCorrection) {
-                                    $defaultAttendance = \Carbon\Carbon::parse($approvedCorrection->attendance_edit)->format('H:i');
-                                    $defaultLeaving = \Carbon\Carbon::parse($approvedCorrection->leaving_edit)->format('H:i');
-                                } elseif ($working) {
-                                    $defaultAttendance = $working->attendance ? \Carbon\Carbon::parse($working->attendance)->format('H:i') : '';
-                                    $defaultLeaving = $working->leaving ? \Carbon\Carbon::parse($working->leaving)->format('H:i') : '';
-                                } else {
-                                    $defaultAttendance = '';
-                                    $defaultLeaving = '';
-                                }
-
-                                // 勤務地の初期値セット（実際の打刻実績から取得）
-                                $defaultWorkingPlace = ($working && $working->working_place) ? $working->working_place : '';
-                            @endphp
 
                             <div class="row">
                                 <div class="col-6 mb-3">
@@ -323,12 +326,6 @@
                                     <label for="leaving_edit" class="form-label">修正後 退勤時刻 <span class="text-danger">*</span></label>
                                     <input type="time" id="leaving_edit" name="leaving_edit" class="form-control" value="{{ old('leaving_edit', $defaultLeaving) }}" required>
                                 </div>
-                            </div>
-
-                            {{-- 【追加】勤務地の入力欄（打刻実績の勤務地を初期値として挿入、name属性等は現在の設計に合わせて適宜変更してください） --}}
-                            <div class="mb-3">
-                                <label for="working_place" class="form-label">勤務地</label>
-                                <input type="text" id="working_place" name="working_place" class="form-control" value="{{ old('working_place', $defaultWorkingPlace) }}" placeholder="例: 本社、リモートなど">
                             </div>
 
                             <div class="mb-3">
@@ -346,9 +343,7 @@
 
         {{-- 勤怠修正申請履歴 --}}
         <div class="card mt-2">
-            <div class="card-header">
-                勤怠修正申請履歴
-            </div>
+            <div class="card-header">勤怠修正申請履歴</div>
             <div class="card-body p-0">
                 <table class="table mb-0">
                     <thead>
@@ -404,11 +399,10 @@
     </div>
 
     <script>
-        // シフトパターン変更時の処理（未選択時は空に戻すように安全ガードを適用）
+        // シフトパターンを手動変更した時だけ時間を上書きする処理
         document.getElementById('master_id').addEventListener('change', function(e) {
             const option = e.target.selectedOptions[0];
             if (!option || !option.value) {
-                // シフトパターン未選択時は、自動セットした「実際の打刻時間・承認時間」を消さないようにするなら、ここを空欄にせず return のみに変更してください。
                 return;
             }
             document.getElementById('attendance_edit').value = option.dataset.attendance || '';
