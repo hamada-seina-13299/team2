@@ -15,7 +15,7 @@ class ShiftSeeder extends Seeder
     public function run(): void
     {
         $startOfMonth = Carbon::create(2026, 6, 1);
-        $endOfMonth = Carbon::create(2026, 6, 30);
+        $endOfMonth = Carbon::today(); 
 
         for ($date = $startOfMonth->copy(); $date->lte($endOfMonth); $date->addDay()) {
             // 土日はシフトなし（スキップ）
@@ -28,9 +28,6 @@ class ShiftSeeder extends Seeder
                 'master_id' => 1, // シフトマスタID
                 'target_date' => $date->format('Y-m-d'),
                 'status' => '承認',
-                'memo' => null,
-                'attendance_edit' => null,
-                'leaving_edit' => null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);;

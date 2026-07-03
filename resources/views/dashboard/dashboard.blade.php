@@ -4,6 +4,15 @@
 
 @section('content')
 
+<!-- 💡 サンプル画像のような上部固定の動的エラーアラート用コンテナ -->
+<div id="dynamic-flash-error" style="display: none; background-color: #f43f5e; color: #fff; padding: 12px 24px; font-weight: bold; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; width: 100%; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <span>⚠️</span>
+        <span id="dynamic-flash-message"></span>
+    </div>
+    <button type="button" id="close-dynamic-flash" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer; font-weight: bold;">&times;</button>
+</div>
+
 @if(session('success'))
 <div style="background-color: #d1fae5; color: #065f46; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: bold;">
     {{ session('success') }}
@@ -38,8 +47,8 @@
                 @if($todayShift)
                 <strong>予定勤務地：</strong> {{ $todayShift->master_name }}<br>
                 <strong>勤務時間：</strong> {{ \Carbon\Carbon::parse($todayShift->attendance)->format('H:i') }} ～ {{ \Carbon\Carbon::parse($todayShift->leaving)->format('H:i') }}<br>
-                <!-- 休憩時間フォーマット例。秒を省いて表示したい場合は変換します -->
-                <strong>休憩時間：</strong> {{ \Carbon\Carbon::parse($todayShift->break_time)->format('H:i') }}
+                <!--計算済みの休憩時間レンジ（例: 12:00 ～ 13:00）を表示 -->
+                <strong>休憩時間：</strong> {{ $displayBreakRange }}
                 @else
                 <strong>予定勤務地：</strong> シフト未登録<br>
                 <strong>勤務時間：</strong> --:-- ～ --:--<br>
@@ -76,6 +85,18 @@
                 @else
                 <button class="btn-punch" disabled>退勤</button>
                 @endif
+            </div>
+
+            <!-- 既定の休憩を追加-->
+            <div class="auto-break-toggle-wrapper" style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 15px; margin-bottom: 8px; font-size: 14px; color: #4b5563;">
+                <span>既定の休憩を追加 ⓘ</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-auto-break" {{ Auth::user()->can_auto_break ? 'checked' : '' }}>
+                    <span class="slider">
+                        <span class="slider-ball"></span>
+                        <span class="toggle-text">OFF</span>
+                    </span>
+                </label>
             </div>
 
             <div class="sub-actions">
