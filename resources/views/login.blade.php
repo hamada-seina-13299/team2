@@ -30,6 +30,8 @@
                     <button type="submit" class="btn">ログイン</button>
                 </div>
 
+                <a href="{{ route('password.passwordRequest') }}">パスワードをお忘れの方はこちら</a>
+
                 @if (!empty($errorList))
                     <ul style="color:red; list-style: none; padding-left: 0;">
                         @foreach ($errorList as $error)
@@ -41,5 +43,13 @@
 
         </main>  
     </div>
+
+    @if (session('password_changed'))
+        <script>
+            // 画面が読み込まれたら「変更されました」のポップアップを表示
+            alert('パスワードが変更されました');
+        </script>
+    @endif
+
 </body>
 </html>
