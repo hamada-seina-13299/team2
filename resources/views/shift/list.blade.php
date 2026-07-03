@@ -1,20 +1,32 @@
-<x-app-layout>
-    <div class="w-full p-6 bg-gray-50 min-h-screen">
-        <h1 class="text-lg font-bold mb-2 text-gray-800">シフト一覧</h1>
+@extends('layouts.app')
 
-        <div class="flex items-center gap-4 mb-6">
-            <div class="flex items-center gap-1">
-                <a href="{{ route('shift.list', ['year' => $month == 1 ? $year - 1 : $year, 'month' => $month == 1 ? 12 : $month - 1]) }}" 
-                   class="w-10 h-10 border border-gray-200 rounded-lg bg-white flex items-center justify-center shadow-sm hover:bg-gray-50 text-gray-500 transition-colors">
-                    &lt;
-                </a>
-                <span class="text-2xl font-bold px-3 text-gray-800">{{ $month }}月</span>
-                <a href="{{ route('shift.list', ['year' => $month == 12 ? $year + 1 : $year, 'month' => $month == 12 ? 1 : $month + 1]) }}" 
-                   class="w-10 h-10 border border-gray-200 rounded-lg bg-white flex items-center justify-center shadow-sm hover:bg-gray-50 text-gray-500 transition-colors">
-                    &gt;
-                </a>
+@section('title', 'シフト一覧 | 勤怠管理システム')
+
+{{-- 💡 必要なスタイルシートを親の @stack('styles') に送り込む --}}
+@push('styles')
+    <script src="https://cdn.tailwindcss.com"></script>
+    @vite(['resources/css/shift.css'])
+@endpush
+
+@section('content')
+    <div class="w-full p-6 bg-gray-50 min-h-screen rounded-xl">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+            <h1 class="text-lg font-bold mb-2 text-gray-800">シフト一覧</h1>
+
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-1">
+                    <a href="{{ route('shift.list', ['year' => $month == 1 ? $year - 1 : $year, 'month' => $month == 1 ? 12 : $month - 1]) }}" 
+                       class="w-10 h-10 border border-gray-200 rounded-lg bg-white flex items-center justify-center shadow-sm hover:bg-gray-50 text-gray-500 transition-colors">
+                        &lt;
+                    </a>
+                    <span class="text-2xl font-bold px-3 text-gray-800">{{ $month }}月</span>
+                    <a href="{{ route('shift.list', ['year' => $month == 12 ? $year + 1 : $year, 'month' => $month == 12 ? 1 : $month + 1]) }}" 
+                       class="w-10 h-10 border border-gray-200 rounded-lg bg-white flex items-center justify-center shadow-sm hover:bg-gray-50 text-gray-500 transition-colors">
+                        &gt;
+                    </a>
+                </div>
+                <span class="text-gray-400 text-lg font-medium self-end mb-1">{{ $year }}年</span>
             </div>
-            <span class="text-gray-400 text-lg font-medium self-end mb-1">{{ $year }}年</span>
         </div>
 
         {{-- 成功フラッシュメッセージ表示 --}}
@@ -124,8 +136,8 @@
     </div>
 
     {{-- シフト追加モーダル --}}
-    <div id="addModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+    <div id="addModal" class="modal-overlay">
+        <div class="modal-container">
 
             <div class="flex justify-between items-center mb-4 flex-shrink-0">
                 <h2 class="font-bold text-lg text-gray-800">シフトを追加する</h2>
@@ -145,7 +157,6 @@
 
                 <form id="shiftAddForm" action="{{ route('shift.store') }}" method="POST">
                     @csrf
-                    {{-- 💡 現在のフォームモードを送信するための隠しフィールド --}}
                     <input type="hidden" id="formMode" name="form_mode" value="{{ old('form_mode', 'select') }}">
 
                     <div id="modalTargetDateGroup" class="mb-4">
@@ -262,7 +273,6 @@
         <input type="hidden" id="deleteMasterId" name="master_id">
     </form>
 
-    {{-- 💡 old('form_mode') が新規追加状態だった場合のみ、新規の入力エラー欄を展開するよう厳格化 --}}
     <span id="error-data"
         data-has-errors="{{ $errors->any() ? 'true' : 'false' }}"
         data-has-fields-error="{{ (old('form_mode') === 'new_master' && ($errors->has('new_working_place') || $errors->has('new_attendance') || $errors->has('new_leaving'))) ? 'true' : 'false' }}"
@@ -277,6 +287,9 @@
             選択した <span id="selectedCount" class="underline font-extrabold mx-0.5">0</span> 日分をまとめて追加
         </button>
     </div>
+@endsection
 
-    @vite(['resources/css/shift.css', 'resources/js/shift.js'])
-</x-app-layout>
+{{-- 💡 JavaScriptを親の @stack('scripts') に送り込む --}}
+@push('scripts')
+    @vite(['resources/js/shift.js'])
+@endpush

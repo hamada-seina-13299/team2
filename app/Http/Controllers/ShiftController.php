@@ -106,6 +106,9 @@ class ShiftController extends Controller
                 'master_id' => $masterId,
                 'target_date' => $date,
                 'status' => '申請中',
+                'memo'            => '',    // 👈 反映されているか確認
+                'attendance_edit' => '00:00:00',  // 👈 '00:00:00' に変更
+                'leaving_edit'    => '00:00:00',  // 👈 '00:00:00' に変更
             ]);
         }
 

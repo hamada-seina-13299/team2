@@ -408,3 +408,75 @@ body {
 .btn-row-delete:hover {
     transform: scale(1.2);
 }
+
+/* ==========================================================================
+   🎛️ トグルスイッチ構造・デザイン完全定義（上書き箇所）
+   ========================================================================== */
+/* スイッチ全体のサイズ */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 56px;
+    height: 26px;
+}
+
+/* 実際のチェックボックス（画面からは隠す） */
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* トグルの背景（デフォルト：OFF時グレー） */
+.switch .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #ccc;
+    transition: .3s;
+    border-radius: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end; /* OFFの文字は右寄せ */
+    padding: 0 8px;
+    box-sizing: border-box;
+}
+
+/* 白い丸（ノブ） */
+.switch .slider-ball {
+    position: absolute;
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+    z-index: 2; /* 文字の上に被らないように調整する場合、必要に応じて */
+}
+
+/* スイッチ内のテキスト（ON / OFF） */
+.switch .toggle-text {
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    user-select: none;
+    z-index: 1;
+}
+
+/* 🟢 ONのとき：背景をご指定のカラーに変更 */
+.switch input:checked + .slider {
+    background-color: #26d0ce;
+    justify-content: flex-start; /* ONの文字は左寄せ */
+}
+
+/* 🟢 ONのとき：白い丸を右側に移動 */
+.switch input:checked + .slider .slider-ball {
+    transform: translateX(30px);
+}
+
+/* 🟢 ONのとき：テキスト位置の微調整 */
+.switch input:checked + .slider .toggle-text {
+    margin-left: 6px;
+    margin-right: auto;
+}

@@ -2,7 +2,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // 💡 ご指摘の通り、最初に関数宣言形式で定義（ホイスティングを可能にし、かつ先頭に配置）
     function openAddModal(date) {
         if (date && modalTargetDate) modalTargetDate.value = date;
-        if (addModal) addModal.classList.remove('hidden');
+        // 💡 ダッシュボードのモーダルと同じ「is-open」方式で開閉（フェード＋スライド演出のため）
+        if (addModal) {
+            addModal.classList.remove('hidden'); // 念のため旧方式のクラスが残っていても解除
+            addModal.classList.add('is-open');
+        }
         if (masterSelect && masterSelect.value) {
             const selectedCard = document.querySelector(
                 ".master-option-card[data-master-id='" + masterSelect.value + "']"
@@ -12,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function closeAddModal() {
-        if (addModal) addModal.classList.add('hidden');
+        if (addModal) addModal.classList.remove('is-open');
     }
 
     // HTMLのonclick等から呼べるようにグローバルに紐付け
@@ -22,6 +26,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- 要素の取得 ---
     const formMode = document.getElementById('formMode');
     const addModal = document.getElementById('addModal');
+
+    // 💡 ダッシュボードと同様、オーバーレイの背景クリックでも閉じられるようにする
+    if (addModal) {
+        addModal.addEventListener('click', (e) => {
+            if (e.target === addModal) closeAddModal();
+        });
+    }
     const modalTargetDateGroup = document.getElementById('modalTargetDateGroup');
     const modalTargetDate = document.getElementById('modalTargetDate');
     const bulkDateMessageGroup = document.getElementById('bulkDateMessageGroup');

@@ -1,6 +1,11 @@
 <div class="sidebar">
-    <a href="#" class="sidebar-icon active" data-tooltip="打刻">🕒</a>
-    <a href="#" class="sidebar-icon" data-tooltip="シフト">📅</a>
+    <a href="{{ route('dashboard') }}" 
+   class="sidebar-icon {{ request()->routeIs('dashboard') ? 'active' : '' }}" 
+   data-tooltip="打刻">🕒</a>
+
+    <a href="{{ route('shift.list') }}" 
+   class="sidebar-icon {{ request()->routeIs('shift.list') ? 'active' : '' }}" 
+   data-tooltip="シフト">📅</a>
     <a href="#" class="sidebar-icon" data-tooltip="勤務表">📊</a>
     <a href="#" class="sidebar-icon" data-tooltip="各種申請">📄</a>
     <a href="#" class="sidebar-icon" data-tooltip="マイデータ">👤</a>

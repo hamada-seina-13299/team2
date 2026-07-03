@@ -325,3 +325,66 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 });
+
+// ==========================================================================
+// 🎛️ 既定の休憩を追加：トグルスイッチ非同期制御（追加箇所）
+// ==========================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    const toggleInput = document.getElementById('toggle-auto-break');
+    const slider = toggleInput ? toggleInput.nextElementSibling : null;
+    const toggleText = slider ? slider.querySelector('.toggle-text') : null;
+    const errorContainer = document.getElementById('dynamic-flash-error');
+    const errorMessage = document.getElementById('dynamic-flash-message');
+    const closeErrorBtn = document.getElementById('close-dynamic-flash');
+
+    if (!toggleInput || !slider) return;
+
+    const updateToggleText = (isLeft) => {
+        if (toggleText) toggleText.textContent = isLeft ? 'ON' : 'OFF';
+    };
+    updateToggleText(toggleInput.checked);
+
+    toggleInput.addEventListener('change', function () {
+        const isChecked = this.checked;
+
+        // ⚡【リアルタイム化】通信を待たずに、押した瞬間に文字を即座に切り替える
+        updateToggleText(isChecked);
+
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+            || document.querySelector('input[name="_token"]')?.value;
+
+        // 裏側で非同期処理（データベース変更など）を実行
+        fetch('/dashboard/toggle-auto-break', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': token
+            },
+            body: JSON.stringify({ can_auto_break: isChecked })
+        })
+            .then(async response => {
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || '設定の変更に失敗しました。');
+                }
+                // 正常終了時は既に文字が変わっているので何もしない（エラーがあれば非表示にするだけ）
+                if (errorContainer) errorContainer.style.display = 'none';
+            })
+            .catch(error => {
+                // ❌ もしサーバー側でエラー（出勤してない等）が発生した場合は、元の状態にパッと引き戻す
+                toggleInput.checked = !isChecked;
+                updateToggleText(!isChecked);
+
+                if (errorContainer && errorMessage) {
+                    errorMessage.textContent = error.message;
+                    errorContainer.style.display = 'flex';
+                }
+            });
+    });
+
+    if (closeErrorBtn && errorContainer) {
+        closeErrorBtn.addEventListener('click', () => {
+            errorContainer.style.display = 'none';
+        });
+    }
+});

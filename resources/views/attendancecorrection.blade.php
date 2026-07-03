@@ -215,20 +215,20 @@
         @endif
 
         <div class="row">
-            {{-- ⭕ 改善点1: 対象日選択フォーム（ここで一度閉じます。入れ子にしない） --}}
+            {{-- 対象日選択フォーム --}}
             <div class="col-12 mb-4">
-                <form method="GET" action="{{ route('shiftcorrection.index') }}" class="sc-date-row">
+                <form method="GET" action="{{ route('attendancecorrection.index') }}" class="sc-date-row" id="date_select_form">
                     <div>
                         <label for="target_date_select" class="form-label">対象日</label>
                         <input type="date" id="target_date_select" name="target_date" class="form-control"
                             value="{{ $targetDate }}"
-                            min="{{ now()->addDay()->format('Y-m-d') }}">
+                            max="{{ now()->format('Y-m-d') }}">
                     </div>
                     <button type="submit" class="btn btn-outline-secondary">表示</button>
                 </form>
             </div>
 
-            {{-- 左側：実際の打刻実績 --}}
+            {{-- 左側：実際の打刻実績（右側の勤務地を削除） --}}
             <div class="col-md-6 mb-4">
                 <div class="card">
                     <div class="card-header">
@@ -241,9 +241,6 @@
                                 <span style="display: inline-block; width: 13px; height: 13px; background-color: #50E3C2; border-radius: 50%; flex-shrink: 0;"></span>
                                 <span style="color: #1F2933;">
                                     出勤: {{ \Carbon\Carbon::parse($working->attendance)->format('H:i') }}
-                                    @if($working->working_place)
-                                    ({{ $working->working_place }})
-                                    @endif
                                 </span>
                             </div>
                             <div class="d-flex align-items-center gap-2">
@@ -263,9 +260,7 @@
             {{-- 右側：勤怠修正申請フォーム --}}
             <div class="col-md-6 mb-4">
                 <div class="card">
-                    <div class="card-header">
-                        勤怠修正申請
-                    </div>
+                    <div class="card-header">勤怠修正申請</div>
                     <div class="card-body">
                         <form method="POST" action="{{ route('attendancecorrection.store') }}">
                             @csrf
@@ -277,14 +272,45 @@
                                     max="{{ now()->format('Y-m-d') }}" required>
                             </div>
 
+                            {{-- 自動初期値判定ロジック --}}
+                            @php
+                            // 1. 対象日かつ「承認済み」の修正申請があるか探す
+                            $approvedCorrection = collect($corrections)->first(function($item) use ($targetDate) {
+                            return \Carbon\Carbon::parse($item->target_date)->format('Y-m-d') === $targetDate && $item->status === 'approved';
+                            });
+
+                            // 2. 時間の初期値セット（承認済み修正 > 実際の打刻実績 > 空）
+                            if ($approvedCorrection) {
+                            $defaultAttendance = \Carbon\Carbon::parse($approvedCorrection->attendance_edit)->format('H:i');
+                            $defaultLeaving = \Carbon\Carbon::parse($approvedCorrection->leaving_edit)->format('H:i');
+                            } elseif ($working) {
+                            $defaultAttendance = $working->attendance ? \Carbon\Carbon::parse($working->attendance)->format('H:i') : '';
+                            $defaultLeaving = $working->leaving ? \Carbon\Carbon::parse($working->leaving)->format('H:i') : '';
+                            } else {
+                            $defaultAttendance = '';
+                            $defaultLeaving = '';
+                            }
+
+                            // 3. 最初から選択状態にするシフトパターンIDの判定（承認済み修正のID > 打刻実績のID > 現在のシフトのID）
+                            if ($approvedCorrection) {
+                            $selectedMasterId = $approvedCorrection->master_id;
+                            } elseif ($working && isset($working->master_id)) {
+                            $selectedMasterId = $working->master_id;
+                            } else {
+                            $selectedMasterId = $currentShift->master_id ?? null;
+                            }
+                            @endphp
+
                             <div class="mb-3">
                                 <label for="master_id" class="form-label">シフトパターン <span class="text-danger">*</span></label>
                                 <select id="master_id" name="master_id" class="form-select" required>
                                     <option value="">選択してください</option>
                                     @foreach ($shiftMasters as $master)
+                                    {{-- ここで対象のシフトパターンを selected にする --}}
                                     <option value="{{ $master->id }}"
                                         data-attendance="{{ \Carbon\Carbon::parse($master->attendance)->format('H:i') }}"
-                                        data-leaving="{{ \Carbon\Carbon::parse($master->leaving)->format('H:i') }}">
+                                        data-leaving="{{ \Carbon\Carbon::parse($master->leaving)->format('H:i') }}"
+                                        {{ old('master_id', $selectedMasterId) == $master->id ? 'selected' : '' }}>
                                         {{ $master->name }} ({{ \Carbon\Carbon::parse($master->attendance)->format('H:i') }}〜)
                                     </option>
                                     @endforeach
@@ -294,11 +320,11 @@
                             <div class="row">
                                 <div class="col-6 mb-3">
                                     <label for="attendance_edit" class="form-label">修正後 出勤時刻 <span class="text-danger">*</span></label>
-                                    <input type="time" id="attendance_edit" name="attendance_edit" class="form-control" value="{{ old('attendance_edit') }}" required>
+                                    <input type="time" id="attendance_edit" name="attendance_edit" class="form-control" value="{{ old('attendance_edit', $defaultAttendance) }}" required>
                                 </div>
                                 <div class="col-6 mb-3">
                                     <label for="leaving_edit" class="form-label">修正後 退勤時刻 <span class="text-danger">*</span></label>
-                                    <input type="time" id="leaving_edit" name="leaving_edit" class="form-control" value="{{ old('leaving_edit') }}" required>
+                                    <input type="time" id="leaving_edit" name="leaving_edit" class="form-control" value="{{ old('leaving_edit', $defaultLeaving) }}" required>
                                 </div>
                             </div>
 
@@ -317,9 +343,7 @@
 
         {{-- 勤怠修正申請履歴 --}}
         <div class="card mt-2">
-            <div class="card-header">
-                勤怠修正申請履歴
-            </div>
+            <div class="card-header">勤怠修正申請履歴</div>
             <div class="card-body p-0">
                 <table class="table mb-0">
                     <thead>
@@ -375,11 +399,22 @@
     </div>
 
     <script>
+        // シフトパターンを手動変更した時だけ時間を上書きする処理
         document.getElementById('master_id').addEventListener('change', function(e) {
             const option = e.target.selectedOptions[0];
-            if (!option || !option.value) return;
+            if (!option || !option.value) {
+                return;
+            }
             document.getElementById('attendance_edit').value = option.dataset.attendance || '';
             document.getElementById('leaving_edit').value = option.dataset.leaving || '';
+        });
+
+        // 対象日の日付が変更されたら、強制的に「勤怠修正」のURLへジャンプしてリロード
+        document.getElementById('target_date_select').addEventListener('change', function(e) {
+            const targetDate = e.target.value;
+            if (targetDate) {
+                window.location.href = "{{ route('attendancecorrection.index') }}?target_date=" + targetDate;
+            }
         });
     </script>
 </body>

@@ -17,3 +17,5 @@ Route::prefix('clock')->name('clock.')->group(function () {
     
 //打刻修正申請用のルート
 Route::post('/dashboard/correct', [DashboardController::class, 'updateCorrection'])->name('clock.correct');
+
+Route::post('/dashboard/toggle-auto-break', [DashboardController::class, 'toggleAutoBreak'])->name('user.toggle_auto_break');

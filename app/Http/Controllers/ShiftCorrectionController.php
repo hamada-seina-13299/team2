@@ -27,7 +27,8 @@ class ShiftCorrectionController extends Controller
         }
 
         // 対象日にすでに登録されている最新のシフト（変更前の予定）を取得
-        $currentShift = Shift::where('user_id', $userId)
+        $currentShift = Shift::with('shiftMaster') // 👈 ここを追加（モデルにリレーションが定義されている前提）
+            ->where('user_id', $userId)
             ->whereDate('target_date', $targetDate)
             ->orderByDesc('created_at')
             ->first();
@@ -40,10 +41,10 @@ class ShiftCorrectionController extends Controller
 
         // 自分が提出したシフト修正申請の履歴
         $shifts = Shift::where('user_id', $userId)
+            ->whereNotNull('memo') // ここで「修正申請」と「予定」を区別するため、メモがあるものだけを取得
             ->orderByDesc('created_at')
             ->take(10)
             ->get();
-
         return view('shiftcorrection', [
             'targetDate'     => $targetDate,
             'shiftMasters'   => $shiftMasters,
@@ -62,7 +63,7 @@ class ShiftCorrectionController extends Controller
             'target_date'     => ['required', 'date', 'after:today'],
             'master_id'       => ['required', 'exists:shift_masters,id'],
             // 秒数が混ざってもエラーにならないよう、規則を緩めるのとフォーマットを外す
-            'attendance_edit' => ['required'], 
+            'attendance_edit' => ['required'],
             'leaving_edit'    => ['required'],
             'memo'            => ['required', 'string', 'max:255'],
         ], [

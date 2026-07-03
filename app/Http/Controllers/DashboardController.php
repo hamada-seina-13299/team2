@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 
 class DashboardController extends Controller
 {
@@ -36,12 +37,32 @@ class DashboardController extends Controller
             ->join('shift_masters', 'shifts.master_id', '=', 'shift_masters.id')
             ->where('shifts.user_id', $userId)
             ->where('shifts.target_date', $today)
-            ->where('shifts.status', '承認')
-            ->select('shift_masters.name as master_name', 'shift_masters.attendance', 'shift_masters.leaving', 'shift_masters.break_time', 'shift_masters.working_place')
+            //->where('shifts.status', '承認')
+            ->select(
+                'shift_masters.name as master_name',
+                'shift_masters.attendance',
+                'shift_masters.leaving',
+                'shift_masters.break_time',
+                'shift_masters.break_start_time', 
+                'shift_masters.working_place'
+            )
             ->first();
 
+        // 休憩の開始〜終了時間の表示用文字列を計算
+        $displayBreakRange = '--:-- ～ --:--';
+        if ($todayShift && !empty($todayShift->break_start_time) && !empty($todayShift->break_time)) {
+            $breakStart = Carbon::parse($todayShift->break_start_time);
+            $breakTime = Carbon::parse($todayShift->break_time);
+
+            $breakEnd = $breakStart->copy()
+                ->addHours($breakTime->hour)
+                ->addMinutes($breakTime->minute)
+                ->addSeconds($breakTime->second);
+
+            $displayBreakRange = $breakStart->format('H:i') . ' ～ ' . $breakEnd->format('H:i');
+        }
+
         // ユーザーが選択可能な勤務地リストをシフトマスタから取得
-        // user_id が自分のもの、または Null（共通）の勤務地を取得して重複を排除
         $workingPlaces = DB::table('shift_masters')
             ->where('user_id', $userId)
             ->orWhereNull('user_id')
@@ -69,7 +90,48 @@ class DashboardController extends Controller
             ->get();
 
         // ビューに渡す
-        return view('dashboard/dashboard', compact('now', 'todayAttendance', 'todayShift', 'history', 'displayWorkingPlace', 'workingPlaces'));
+        return view('dashboard/dashboard', compact(
+            'now',
+            'todayAttendance',
+            'todayShift',
+            'history',
+            'displayWorkingPlace',
+            'workingPlaces',
+            'displayBreakRange'
+        ));
+    }
+
+    /**
+     * 既定の休憩を追加：状態変更非同期処理（追加箇所）
+     */
+    public function toggleAutoBreak(Request $request)
+    {
+        $userId = Auth::id();
+        $today = Carbon::today()->format('Y-m-d');
+
+        // 本日の勤怠レコードを取得
+        $attendance = DB::table('workings')
+            ->where('user_id', $userId)
+            ->where('punch_date', $today)
+            ->first();
+
+        // 出勤中かどうかの判定（レコードがない、またはすでに退勤時刻がある場合は422エラー）
+        if (!$attendance || !is_null($attendance->leaving)) {
+            return response()->json([
+                'success' => false,
+                'message' => '「既定の休憩を追加」の設定は出勤中に限り変更可能です。'
+            ], 422);
+        }
+
+        // usersテーブルの can_auto_break カラムを更新
+        $user = User::find($userId);
+        $user->can_auto_break = $request->input('can_auto_break') ? true : false;
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'can_auto_break' => $user->can_auto_break
+        ]);
     }
 
     /**
