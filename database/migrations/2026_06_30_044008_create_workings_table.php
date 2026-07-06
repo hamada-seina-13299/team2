@@ -18,8 +18,9 @@ return new class extends Migration
             $table->time('attendance');
             $table->time('leaving')->nullable();
             $table->time('break_time')->nullable();
+            $table->time('break_end_time')->nullable();
             $table->string('working_place')->nullable();
-             $table->integer('commute')->default(0);
+            $table->integer('commute')->default(0);
             $table->string('status',10);
             $table->timestamps();
         });

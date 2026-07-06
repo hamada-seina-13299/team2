@@ -12,6 +12,7 @@ class Working extends Model
         'attendance',
         'leaving',
         'break_time',
+        'break_end_time',
         'working_place',
         'commute',
         'status',

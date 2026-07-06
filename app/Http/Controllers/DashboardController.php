@@ -26,7 +26,16 @@ class DashboardController extends Controller
         $now = Carbon::now()->format('H:i');
         $sevenDaysAgo = Carbon::today()->subDays(7)->format('Y-m-d');
 
-        // 本日の勤怠レコードを取得（打刻ボタンの制御用）
+        // 「出勤していて退勤していない最新のレコード」を取得（夜勤対応用）
+        $latestOpenAttendance = DB::table('workings')
+            ->where('user_id', $userId)
+            ->whereNotNull('attendance')
+            ->whereNull('leaving')
+            ->orderBy('punch_date', 'desc')
+            ->orderBy('attendance', 'desc')
+            ->first();
+
+        // 本日の勤怠レコードを取得（打刻ボタン以外の既存ロジック互換用）
         $todayAttendance = DB::table('workings')
             ->where('user_id', $userId)
             ->where('punch_date', $today)
@@ -37,13 +46,12 @@ class DashboardController extends Controller
             ->join('shift_masters', 'shifts.master_id', '=', 'shift_masters.id')
             ->where('shifts.user_id', $userId)
             ->where('shifts.target_date', $today)
-            //->where('shifts.status', '承認')
             ->select(
                 'shift_masters.name as master_name',
                 'shift_masters.attendance',
                 'shift_masters.leaving',
                 'shift_masters.break_time',
-                'shift_masters.break_start_time', 
+                'shift_masters.break_start_time',
                 'shift_masters.working_place'
             )
             ->first();
@@ -68,55 +76,121 @@ class DashboardController extends Controller
             ->orWhereNull('user_id')
             ->pluck('working_place')
             ->unique()
-            ->filter() // 空値を除外
+            ->filter()
             ->values()
             ->all();
 
         // 勤務地決定ロジック
         $displayWorkingPlace = '未定';
         if ($todayAttendance && !empty($todayAttendance->working_place)) {
-            // 1. 実勤務地があれば最優先
             $displayWorkingPlace = $todayAttendance->working_place;
         } elseif ($todayShift && !empty($todayShift->working_place)) {
-            // 2. 実勤務地がNullならシフトの予定勤務地（本社(在宅)など）
             $displayWorkingPlace = $todayShift->working_place;
         }
 
+        // 休憩終了時刻を計算してプロパティとして追加
+        if ($todayAttendance) {
+            $todayAttendance->break_out = '';
+            if (!empty($todayAttendance->break_time) && $todayShift && !empty($todayShift->break_time)) {
+                $bStart = Carbon::parse($todayAttendance->break_time);
+                $bLength = Carbon::parse($todayShift->break_time);
+                $todayAttendance->break_out = $bStart->copy()->addHours($bLength->hour)->addMinutes($bLength->minute)->format('H:i');
+            }
+        }
+
         // 履歴一覧を今日から7日前までに限定
-        $history = DB::table('workings')
+        $historyData = DB::table('workings')
             ->where('user_id', $userId)
             ->where('punch_date', '>=', $sevenDaysAgo)
             ->orderBy('punch_date', 'desc')
+            ->get();
+
+        //コレクションの各レコードに break_out プロパティを動的に追加
+        $history = $historyData->map(function ($record) use ($todayShift) {
+            $record->break_out = ''; // 初期化
+
+            if (!empty($record->break_time) && $todayShift && !empty($todayShift->break_time)) {
+                $bStart = Carbon::parse($record->break_time);
+                $bLength = Carbon::parse($todayShift->break_time);
+                // 休憩開始にシフトの休憩時間を足してセット
+                $record->break_out = $bStart->copy()->addHours($bLength->hour)->addMinutes($bLength->minute)->format('H:i');
+            }
+
+            return $record;
+        });
+
+        // 期間を絞らず、このユーザーが持っている全ての「打刻日」の重複なきリストを取得
+        $allWorkingDates = DB::table('workings')
+            ->where('user_id', $userId)
+            ->orderBy('punch_date', 'desc')
+            ->pluck('punch_date')
+            ->unique()
+            ->values()
+            ->all();
+
+        //  過去すべての打刻データをJSに渡すために取得（軽量化のため必要なカラムのみ）
+        $allHistoryRaw = DB::table('workings')
+            ->where('user_id', $userId)
+            ->orderBy('punch_date', 'desc')
+            ->get();
+
+        $allHistoryData = $allHistoryRaw->map(function ($record) use ($todayShift) {
+            $record->break_out = '';
+            if (!empty($record->break_time) && $todayShift && !empty($todayShift->break_time)) {
+                $bStart = Carbon::parse($record->break_time);
+                $bLength = Carbon::parse($todayShift->break_time);
+                $record->break_out = $bStart->copy()->addHours($bLength->hour)->addMinutes($bLength->minute)->format('H:i');
+            }
+            return [
+                'punch_date' => $record->punch_date,
+                'attendance' => $record->attendance ? Carbon::parse($record->attendance)->format('H:i') : '',
+                'leaving' => $record->leaving ? Carbon::parse($record->leaving)->format('H:i') : '',
+                'break_time' => $record->break_time ? Carbon::parse($record->break_time)->format('H:i') : '',
+                'break_out' => $record->break_out,
+                'working_place' => $record->working_place ?? '',
+            ];
+        })->keyBy('punch_date'); // 日付をキーにする
+
+        $allHistoryJson = json_encode($allHistoryData);
+
+        $correctionHistory = DB::table('working_corrections')
+            ->where('user_id', $userId)
+            ->orderBy('created_at', 'desc')
             ->get();
 
         // ビューに渡す
         return view('dashboard/dashboard', compact(
             'now',
             'todayAttendance',
+            'latestOpenAttendance',
             'todayShift',
             'history',
             'displayWorkingPlace',
             'workingPlaces',
-            'displayBreakRange'
+            'displayBreakRange',
+            'allWorkingDates',
+            'allHistoryJson',
+            'correctionHistory'
         ));
     }
 
     /**
-     * 既定の休憩を追加：状態変更非同期処理（追加箇所）
+     * 既定の休憩を追加：状態変更非同期処理
      */
     public function toggleAutoBreak(Request $request)
     {
         $userId = Auth::id();
-        $today = Carbon::today()->format('Y-m-d');
 
-        // 本日の勤怠レコードを取得
+        // 夜勤考慮のため、最新の未退勤レコードを基準に判定
         $attendance = DB::table('workings')
             ->where('user_id', $userId)
-            ->where('punch_date', $today)
+            ->whereNotNull('attendance')
+            ->whereNull('leaving')
+            ->orderBy('punch_date', 'desc')
             ->first();
 
-        // 出勤中かどうかの判定（レコードがない、またはすでに退勤時刻がある場合は422エラー）
-        if (!$attendance || !is_null($attendance->leaving)) {
+        // 出勤中かどうかの判定（未退勤レコードがない場合は422エラー）
+        if (!$attendance) {
             return response()->json([
                 'success' => false,
                 'message' => '「既定の休憩を追加」の設定は出勤中に限り変更可能です。'
@@ -143,9 +217,15 @@ class DashboardController extends Controller
         $today = Carbon::today()->format('Y-m-d');
         $now = Carbon::now()->format('H:i:s');
 
-        $exists = DB::table('workings')->where('user_id', $userId)->where('punch_date', $today)->exists();
-        if ($exists) {
-            return redirect()->back()->with('error', '本日はすでに出勤打刻済みです。');
+        // 未退勤のデータが残っている場合は出勤させない（重複防止）
+        $hasOpenAttendance = DB::table('workings')
+            ->where('user_id', $userId)
+            ->whereNotNull('attendance')
+            ->whereNull('leaving')
+            ->exists();
+
+        if ($hasOpenAttendance) {
+            return redirect()->back()->with('error', '未退勤の勤務データがあります。先に退勤を行ってください。');
         }
 
         DB::table('workings')->insert([
@@ -170,82 +250,90 @@ class DashboardController extends Controller
     public function clockOut(Request $request)
     {
         $userId = Auth::id();
-        $today = Carbon::today()->format('Y-m-d');
         $now = Carbon::now()->format('H:i:s');
 
-        $working = DB::table('workings')->where('user_id', $userId)->where('punch_date', $today)->first();
+        // 「本日」ではなく「最新の未退勤レコード」を取得（夜勤対応）
+        $working = DB::table('workings')
+            ->where('user_id', $userId)
+            ->whereNotNull('attendance')
+            ->whereNull('leaving')
+            ->orderBy('punch_date', 'desc')
+            ->orderBy('attendance', 'desc')
+            ->first();
+
         if (!$working) {
             return redirect()->back()->with('error', '出勤データが見つかりません。');
         }
-        if (!is_null($working->leaving)) {
-            return redirect()->back()->with('error', 'すでに退勤打刻済みです。');
-        }
 
-        DB::table('workings')->where('id', $working->id)->update([
+        //  ユーザーの「既定の休憩を追加」設定(can_auto_break)を取得
+        $user = User::find($userId);
+        $canAutoBreak = $user ? $user->can_auto_break : false;
+
+        // 更新データのベース（退勤時刻）
+        $updateData = [
             'leaving' => $now,
             'updated_at' => Carbon::now(),
-        ]);
+        ];
+
+        //  休憩開始時刻(break_time)が入っていない（Null）場合の判定
+        if (is_null($working->break_time)) {
+            if ($canAutoBreak) {
+                $shift = DB::table('shifts')
+                    ->join('shift_masters', 'shifts.master_id', '=', 'shift_masters.id')
+                    ->where('shifts.user_id', $userId)
+                    ->where('shifts.target_date', $working->punch_date)
+                    ->select('shift_masters.break_start_time', 'shift_masters.break_time as break_length') // 💡 break_time（休憩長さ）も取得
+                    ->first();
+
+                if ($shift && !empty($shift->break_start_time)) {
+                    $updateData['break_time'] = $shift->break_start_time;
+
+                    // 💡 休憩終了時刻を物理計算して保存
+                    if (!empty($shift->break_length)) {
+                        $bStart = Carbon::parse($shift->break_start_time);
+                        $bLength = Carbon::parse($shift->break_length);
+                        $updateData['break_end_time'] = $bStart->copy()->addHours($bLength->hour)->addMinutes($bLength->minute)->format('H:i:s');
+                    }
+                }
+            } else {
+                return redirect()->back()->with('error', '休憩が記録されていません。...');
+            }
+        }
+
+        // workingsテーブルを更新して退勤完了（該当レコードのIDで安全に更新）
+        DB::table('workings')->where('id', $working->id)->update($updateData);
 
         return redirect()->route('dashboard')->with('success', '退勤しました。');
     }
 
     /**
-     * 打刻修正申請
+     *  休憩開始打刻
      */
-    public function updateCorrection(Request $request)
+    public function breakIn(Request $request)
     {
         $userId = Auth::id();
-        $targetDate = $request->input('target_date');
+        $now = Carbon::now()->format('H:i:s');
 
-        $deleteAttendance = $request->has('delete_attendance');
-        $deleteLeaving    = $request->has('delete_leaving');
-
-        $attendanceTime = $request->input('attendance_time');
-        $attendance = (!empty($attendanceTime) && !$deleteAttendance) ? Carbon::parse($attendanceTime)->format('H:i:s') : null;
-
-        $leavingTime = $request->input('leaving_time');
-        $leaving = (!empty($leavingTime) && !$deleteLeaving) ? Carbon::parse($leavingTime)->format('H:i:s') : null;
-
-        $workingPlace = $request->input('working_place', '本社');
-
-        $existingRecord = DB::table('workings')
+        //  夜勤考慮のため、最新の未退勤レコードを対象にする
+        $working = DB::table('workings')
             ->where('user_id', $userId)
-            ->where('punch_date', $targetDate)
+            ->whereNotNull('attendance')
+            ->whereNull('leaving')
+            ->orderBy('punch_date', 'desc')
             ->first();
 
-        // 両方削除、またはデータが空なら物理削除
-        if (($deleteAttendance && $deleteLeaving) || (is_null($attendance) && is_null($leaving))) {
-            if ($existingRecord) {
-                DB::table('workings')->where('id', $existingRecord->id)->delete();
-            }
-            return redirect()->route('dashboard')->with('success', '打刻情報を削除しました。');
+        if (!$working) {
+            return redirect()->back()->with('error', '出勤データが見つからないため、休憩を開始できません。');
+        }
+        if (!is_null($working->break_time)) {
+            return redirect()->back()->with('error', 'すでに休憩開始打刻済みです。');
         }
 
-        if ($existingRecord) {
-            DB::table('workings')
-                ->where('id', $existingRecord->id)
-                ->update([
-                    'attendance'    => $attendance,
-                    'leaving'       => $leaving,
-                    'working_place' => $workingPlace,
-                    'status'        => '承認済み',
-                    'updated_at'    => Carbon::now(),
-                ]);
-        } else {
-            DB::table('workings')->insert([
-                'user_id'       => $userId,
-                'punch_date'    => $targetDate,
-                'attendance'    => $attendance,
-                'leaving'       => $leaving,
-                'break_time'    => null,
-                'working_place' => $workingPlace,
-                'commute'       => 0,
-                'status'        => '承認済み',
-                'created_at'    => Carbon::now(),
-                'updated_at'    => Carbon::now(),
-            ]);
-        }
+        DB::table('workings')->where('id', $working->id)->update([
+            'break_time' => $now,
+            'updated_at' => Carbon::now(),
+        ]);
 
-        return redirect()->route('dashboard')->with('success', '打刻情報を修正しました。');
+        return redirect()->route('dashboard')->with('success', '休憩を開始しました。');
     }
 }
