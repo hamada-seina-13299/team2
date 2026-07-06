@@ -27,6 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
             // attendancecorrection.php を追加
             Route::middleware('web')
                 ->group(base_path('routes/attendancecorrection.php'));
+
+            // attendance.php を追加
+            Route::middleware('web')
+                ->group(base_path('routes/attendance.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
