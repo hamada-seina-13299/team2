@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Yasumi\Yasumi;
 
 class ShiftController extends Controller
 {
@@ -25,12 +26,26 @@ class ShiftController extends Controller
             ->get()
             ->keyBy(fn ($shift) => $shift->target_date->format('Y-m-d'));
 
+        // 💡 日本の祝日を取得し、「Y-m-d => 祝日名」のマップを作成
+        //    月またぎ表示はしていないが、年をまたぐケースに備えて前後年分も一応マージしておく
+        $holidayMap = [];
+        foreach ([$year - 1, $year, $year + 1] as $targetYear) {
+            $holidaysProvider = Yasumi::create('Japan', $targetYear, 'ja_JP');
+            foreach ($holidaysProvider as $holiday) {
+                $holidayMap[$holiday->format('Y-m-d')] = $holiday->getName();
+            }
+        }
+
         $period = CarbonPeriod::create($startOfMonth, $endOfMonth);
 
-        $days = collect($period)->map(function (Carbon $date) use ($shifts) {
+        $days = collect($period)->map(function (Carbon $date) use ($shifts, $holidayMap) {
+            $dateKey = $date->format('Y-m-d');
+
             return [
                 'date' => $date,
-                'shift' => $shifts->get($date->format('Y-m-d')),
+                'shift' => $shifts->get($dateKey),
+                'is_holiday' => array_key_exists($dateKey, $holidayMap),
+                'holiday_name' => $holidayMap[$dateKey] ?? null,
             ];
         });
 
@@ -39,11 +54,18 @@ class ShiftController extends Controller
             ->orderBy('name')
             ->get();
 
+        // 💡 前回使用したシフトマスタ（セッション保持）。ワンクリック追加ボタン表示に使用。
+        $lastMasterId = session('last_shift_master_id');
+        $lastMaster = $lastMasterId
+            ? $shiftMasters->firstWhere('id', $lastMasterId)
+            : null;
+
         return view('shift.list', [
             'days' => $days,
             'year' => $year,
             'month' => $month,
             'shiftMasters' => $shiftMasters,
+            'lastMaster' => $lastMaster,
         ]);
     }
 
@@ -106,13 +128,46 @@ class ShiftController extends Controller
                 'master_id' => $masterId,
                 'target_date' => $date,
                 'status' => '申請中',
-                'memo'            => '',    // 👈 反映されているか確認
-                'attendance_edit' => '00:00:00',  // 👈 '00:00:00' に変更
-                'leaving_edit'    => '00:00:00',  // 👈 '00:00:00' に変更
+                'memo'            => null,
+                'attendance_edit' => null,
+                'leaving_edit'    => null,
+            ]);
+        }
+
+        // 💡 今回使用したマスタを記憶しておき、次回「＋シフトを追加」をワンクリックで使えるようにする
+        session(['last_shift_master_id' => $masterId]);
+
+        // 💡 Ajax（ワンクリック追加）からの場合は、リロードせず該当行を更新できるようJSONを返す
+        if ($request->wantsJson() || $request->ajax()) {
+            $createdShifts = Shift::with('shiftMaster')
+                ->where('user_id', Auth::id())
+                ->whereIn('target_date', $dates)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => count($dates) . '件のシフトを追加しました。',
+                'shifts' => $createdShifts->map(function ($shift) {
+                    return [
+                        'date' => $shift->target_date->format('Y-m-d'),
+                        'shift_id' => $shift->id,
+                        'attendance' => date('H:i', strtotime($shift->shiftMaster->attendance)),
+                        'leaving' => date('H:i', strtotime($shift->shiftMaster->leaving)),
+                        'master_name' => $shift->shiftMaster->name,
+                        'edit_url' => route('shiftcorrection.index', ['shift_id' => $shift->id]),
+                    ];
+                }),
             ]);
         }
 
         return back()->with('success', count($dates) . "件のシフトをまとめて追加しました。シフト一覧に反映されました。");
+    }
+
+    public function clearLastMaster(Request $request)
+    {
+        session()->forget('last_shift_master_id');
+
+        return back();
     }
 
     public function destroyMaster(Request $request)
@@ -125,15 +180,15 @@ class ShiftController extends Controller
             ->where('user_id', Auth::id())
             ->firstOrFail();
 
-        $workingPlace = $master->working_place;
+        $masterName = $master->name;
 
         try {
             $master->delete();
-            return back()->with('success', "{$workingPlace}のマスタを削除しました。");
+            return back()->with('success', "{$masterName}のマスタを削除しました。");
         } catch (\Illuminate\Database\QueryException $e) {
             if ($e->getCode() === '23000') {
                 return back()->withErrors([
-                    'master_id' => "「{$workingPlace}」は、すでにカレンダーのシフトに登録されているため削除できません。先にカレンダー側のシフトを削除してください。"
+                    'master_id' => "「{$masterName}」は、すでにカレンダーのシフトに登録されているため削除できません。先にカレンダー側のシフトを削除してください。"
                 ]);
             }
             throw $e;
