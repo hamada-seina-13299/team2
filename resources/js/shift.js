@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const bulkBtnContainer = document.getElementById('floatingBulkBtnContainer');
     const selectedCountSpan = document.getElementById('selectedCount');
     const openBulkModalBtn = document.getElementById('openBulkModalBtn');
+    const selectWeekdaysBtn = document.getElementById('selectWeekdaysBtn');
     const shiftAddForm = document.getElementById('shiftAddForm');
 
     // 通常の単発追加ボタン
@@ -119,17 +120,19 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // 💡 チェック有無で「土日を除く全選択」⇔「◯件まとめて追加」をヌルっと切り替える
     function toggleBulkButton() {
         const checkedBoxes = document.querySelectorAll('.shift-bulk-checkbox:checked');
         const count = checkedBoxes.length;
 
-        if (bulkBtnContainer && selectedCountSpan) {
-            if (count > 0) {
-                selectedCountSpan.textContent = count;
-                bulkBtnContainer.classList.remove('hidden');
-            } else {
-                bulkBtnContainer.classList.add('hidden');
-            }
+        if (selectedCountSpan) selectedCountSpan.textContent = count;
+
+        if (count > 0) {
+            if (selectWeekdaysBtn) selectWeekdaysBtn.classList.add('btn-slot-hidden');
+            if (openBulkModalBtn) openBulkModalBtn.classList.remove('btn-slot-hidden');
+        } else {
+            if (selectWeekdaysBtn) selectWeekdaysBtn.classList.remove('btn-slot-hidden');
+            if (openBulkModalBtn) openBulkModalBtn.classList.add('btn-slot-hidden');
         }
     }
 
@@ -137,14 +140,134 @@ document.addEventListener('DOMContentLoaded', function () {
         cb.addEventListener('change', toggleBulkButton);
     });
 
-    document.querySelectorAll('.delete-shift-form').forEach(form => {
+    // 土日祝を除くすべてにチェックをつける
+    if (selectWeekdaysBtn) {
+        selectWeekdaysBtn.addEventListener('click', function () {
+            checkboxes.forEach(cb => {
+                const dow = parseInt(cb.getAttribute('data-day-of-week'), 10);
+                const isHoliday = cb.getAttribute('data-is-holiday') === '1';
+                // 0:日曜, 6:土曜, 祝日 は対象外
+                cb.checked = (dow !== 0 && dow !== 6 && !isHoliday);
+            });
+            toggleBulkButton();
+        });
+    }
+
+    // 初期表示時の状態を合わせておく
+    toggleBulkButton();
+
+    // 💡 削除フォームの確認ダイアログ(Ajax追加後に生成されたフォームにも再利用できるよう関数化)
+    function bindDeleteForm(form) {
+        if (!form) return;
         form.addEventListener('submit', function (e) {
             const confirmDate = this.getAttribute('data-confirm-date');
             if (!confirm(confirmDate + 'のシフトを削除しますか？')) {
                 e.preventDefault();
             }
         });
+    }
+
+    // 💡 ワンクリック追加(前回マスタ使用分)はAjaxで送信し、画面リロード・スクロール位置リセットを防ぐ
+    const csrfTokenInput = document.querySelector('input[name="_token"]');
+    const csrfToken = csrfTokenInput ? csrfTokenInput.value : '';
+    const shiftDeleteUrl = (function () {
+        const el = document.getElementById('error-data');
+        return el ? el.getAttribute('data-shift-delete-url') : '';
+    })();
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str == null ? '' : String(str);
+        return div.innerHTML;
+    }
+
+    function updateRowAfterQuickAdd(shift) {
+        const row = document.getElementById('shift-row-' + shift.date);
+        if (!row) return;
+
+        const checkboxCell = row.querySelector('.cell-checkbox');
+        if (checkboxCell) checkboxCell.innerHTML = '<span class="text-xs text-gray-300 select-none">-</span>';
+
+        const attendanceCell = row.querySelector('.cell-attendance');
+        if (attendanceCell) attendanceCell.textContent = shift.attendance;
+
+        const leavingCell = row.querySelector('.cell-leaving');
+        if (leavingCell) leavingCell.textContent = shift.leaving;
+
+        const placeCell = row.querySelector('.cell-place');
+        if (placeCell) {
+            placeCell.innerHTML =
+                '<span class="inline-flex items-center justify-center gap-1 w-full max-w-full truncate">' +
+                '📍<span class="truncate font-medium text-gray-700">' + escapeHtml(shift.master_name) + '</span></span>';
+        }
+
+        const editCell = row.querySelector('.cell-edit');
+        if (editCell) {
+            editCell.innerHTML = '<a href="' + shift.edit_url + '" class="btn-edit inline-block text-center">修正</a>';
+        }
+
+        const deleteCell = row.querySelector('.cell-delete');
+        if (deleteCell && shiftDeleteUrl) {
+            const dateLabel = row.querySelector('td:nth-child(2)');
+            const confirmDate = dateLabel ? dateLabel.textContent.trim() : '';
+
+            deleteCell.innerHTML =
+                '<form action="' + shiftDeleteUrl + '" method="POST" data-confirm-date="' + escapeHtml(confirmDate) + '" class="delete-shift-form inline-block m-0">' +
+                '<input type="hidden" name="_token" value="' + escapeHtml(csrfToken) + '">' +
+                '<input type="hidden" name="_method" value="DELETE">' +
+                '<input type="hidden" name="shift_id" value="' + shift.shift_id + '">' +
+                '<button type="submit" class="btn-delete">削除</button>' +
+                '</form>';
+
+            bindDeleteForm(deleteCell.querySelector('.delete-shift-form'));
+        }
+
+        // チェックボックスが消えたので選択件数を再計算
+        toggleBulkButton();
+    }
+
+    document.querySelectorAll('.quick-add-form').forEach(form => {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const btn = form.querySelector('button[type="submit"]');
+            const originalLabel = btn ? btn.textContent : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '追加中...';
+            }
+
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                },
+                body: new FormData(form),
+            })
+                .then(res => res.json().then(data => ({ ok: res.ok, data })))
+                .then(({ ok, data }) => {
+                    if (!ok || !data || !data.success) {
+                        alert((data && data.message) || 'シフトの追加に失敗しました。');
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.textContent = originalLabel;
+                        }
+                        return;
+                    }
+                    (data.shifts || []).forEach(updateRowAfterQuickAdd);
+                })
+                .catch(() => {
+                    alert('通信エラーが発生しました。お手数ですが再度お試しください。');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = originalLabel;
+                    }
+                });
+        });
     });
+
+    document.querySelectorAll('.delete-shift-form').forEach(bindDeleteForm);
 
     document.querySelectorAll('.delete-master-btn').forEach(btn => {
         btn.addEventListener('click', function (e) {

@@ -16,4 +16,5 @@ Route::middleware('auth')->group(function () {
     Route::delete('/shift/delete', [ShiftController::class, 'destroy'])->name('shift.delete');
     Route::post('/shift/add', [ShiftController::class, 'store'])->name('shift.store');
     Route::delete('/shift/master/delete', [ShiftController::class, 'destroyMaster'])->name('shift.master.delete');
+    Route::post('/shift/master/clear', [ShiftController::class, 'clearLastMaster'])->name('shift.master.clear');
 });

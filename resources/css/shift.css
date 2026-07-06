@@ -140,9 +140,6 @@
 }
 
 .floating-bulk-btn {
-    position: fixed;
-    bottom: 1.5rem;
-    right: 1.5rem;
     z-index: 40;
     background-color: #2563eb;
     color: #fff;
@@ -154,6 +151,7 @@
     align-items: center;
     gap: 0.5rem;
     font-size: 0.875rem;
+    white-space: nowrap;
     transition: all 0.2s;
     border: none;
     cursor: pointer;
@@ -165,6 +163,29 @@
 }
 .floating-bulk-btn:active {
     transform: translateY(0);
+}
+
+.floating-btn-swap {
+    position: relative;
+    min-height: 3.25rem;
+    min-width: 12rem;
+}
+
+.floating-btn-slot {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    white-space: nowrap;
+    width: max-content;
+}
+
+.floating-btn-slot.btn-slot-hidden {
+    opacity: 0;
+    transform: translateY(14px);
+    pointer-events: none;
 }
 
 .bulk-message-box {
