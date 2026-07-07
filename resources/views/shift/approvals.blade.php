@@ -57,14 +57,16 @@
                             </td>
                             <td class="p-3 text-center align-middle">
                                 <form action="{{ route('shift.approvals.approve', $submission) }}" method="POST"
-                                    onsubmit="return confirm('{{ $submission->user->name ?? '' }}さんの{{ $submission->year }}年{{ $submission->month }}月分を承認しますか？');" class="inline-block m-0">
+                                    class="inline-block m-0 js-confirm-submit"
+                                    data-confirm-message="{{ ($submission->user->name ?? '') }}さんの{{ $submission->year }}年{{ $submission->month }}月分を承認しますか？">
                                     @csrf
                                     <button type="submit" class="btn-approve">承認</button>
                                 </form>
                             </td>
                             <td class="p-3 text-center align-middle">
                                 <form action="{{ route('shift.approvals.withdraw', $submission) }}" method="POST"
-                                    onsubmit="return confirm('{{ $submission->user->name ?? '' }}さんの{{ $submission->year }}年{{ $submission->month }}月分の提出を取り下げますか？（本人側は未提出に戻ります）');" class="inline-block m-0">
+                                    class="inline-block m-0 js-confirm-submit"
+                                    data-confirm-message="{{ ($submission->user->name ?? '') }}さんの{{ $submission->year }}年{{ $submission->month }}月分の提出を取り下げますか？（本人側は未提出に戻ります）">
                                     @csrf
                                     <button type="submit" class="btn-delete">取り下げ</button>
                                 </form>
@@ -159,6 +161,15 @@
                     if (e.target === modal) closeModal();
                 });
             }
+
+            document.querySelectorAll('.js-confirm-submit').forEach(form => {
+                form.addEventListener('submit', function (e) {
+                    const message = this.getAttribute('data-confirm-message') || '';
+                    if (!confirm(message)) {
+                        e.preventDefault();
+                    }
+                });
+            });
         });
     </script>
 @endsection
