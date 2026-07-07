@@ -15,7 +15,7 @@ return new class extends Migration
             $table->unsignedTinyInteger('month');
             // 未提出 / 申請中 / 承認済み / 差し戻し
             $table->string('status')->default('未提出');
-            $table->timestamp('submitted_at')->nullable();
+
             $table->timestamps();
 
             $table->unique(['user_id', 'year', 'month']);
