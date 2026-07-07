@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const types = [];
         if (tbody.querySelector('#row-static-break-in')) types.push('休憩開始');
         if (tbody.querySelector('#row-static-break-out')) types.push('休憩終了');
-        
+
         // 追加された他の動的行をすべてチェック
         tbody.querySelectorAll('.dynamic-row .row-type-select').forEach(select => {
             if (select !== excludeSelectElement && select.value) {
@@ -61,16 +61,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // 画面上のすべてのセレクトボックスの選択肢をリアルタイムにクレンジングする関数（重複防止）
     function updateSelectOptions() {
         const dynamicRows = tbody.querySelectorAll('.dynamic-row');
-        
+
         dynamicRows.forEach(row => {
             const select = row.querySelector('.row-type-select');
             const currentValue = select.value;
-            
+
             // 自分以外の行で選択済みの種別を回収
             const usedTypes = getExistingTypes(select);
-            
+
             let optionsHtml = '';
-            
+
             // 他の行で使われていなければ「休憩開始」を選択肢に出す
             if (!usedTypes.includes('休憩開始')) {
                 optionsHtml += `<option value="休憩開始" ${currentValue === '休憩開始' ? 'selected' : ''}>休憩開始</option>`;
@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             // 勤務地変更は重複して何個でも追加可能
             optionsHtml += `<option value="勤務地変更" ${currentValue === '勤務地変更' ? 'selected' : ''}>勤務地変更</option>`;
-            
+
             select.innerHTML = optionsHtml;
         });
     }
@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function injectStaticBreakRow(type, timeValue) {
         const tr = document.createElement('tr');
         tr.className = 'form-row-group';
-        
+
         if (type === 'in') {
             tr.id = 'row-static-break-in';
             tr.innerHTML = `
@@ -228,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const leavingRow = tbody.querySelector('#row-leaving');
         const staticBreakIn = tbody.querySelector('#row-static-break-in');
-        
+
         if (type === 'in' && leavingRow) {
             leavingRow.parentNode.insertBefore(tr, leavingRow.nextSibling);
         } else if (type === 'out' && staticBreakIn) {
@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 日付ラベルの生成用（1週間前より過去はボタンがないので自前でフォーマット）
         document.getElementById('modal-target-date-input').value = targetDate;
-        
+
         //ボタン（DOM）が存在すればその data-date-label を使い、無ければ自前で「YYYY年M月D日(ShortDay)」を生成
         const trigger = document.querySelector(`.btn-edit-trigger[data-date="${targetDate}"]`);
         if (trigger) {
@@ -337,12 +337,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // ハイフン区切りをパースして日付オブジェクト化 (タイムゾーンのズレを防ぐためスプリット)
             const parts = targetDate.split('-');
             const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
-            
+
             const year = dateObj.getFullYear();
             const month = dateObj.getMonth() + 1;
             const day = dateObj.getDate();
             const dayName = daysShort[dateObj.getDay()];
-            
+
             // 画像のフォーマット「2026年6月29日(Mon)」を完全再現
             document.getElementById('modal-target-date-label').textContent = `${year}年${month}月${day}日(${dayName})`;
         }
@@ -367,13 +367,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (oldOut) oldOut.remove();
 
         // JSONデータから休憩開始・終了の時間をマッピング
-        const breakInTime = (dayData && dayData.break_time) ? dayData.break_time : '';
-        const breakOutTime = (dayData && dayData.break_out) ? dayData.break_out : '';
+        let breakInTime = (dayData && dayData.break_time) ? dayData.break_time : '';
+        let breakOutTime = (dayData && dayData.break_end_time) ? dayData.break_end_time : '';
 
-        if (breakInTime !== '') injectStaticBreakRow('in', breakInTime);
-        if (breakOutTime !== '') injectStaticBreakRow('out', breakOutTime);
+        // 秒数（:00）が含まれている場合、input[type="time"] が認識できるように「H:i」形式に整形
+        if (breakInTime && breakInTime.length > 5) breakInTime = breakInTime.substring(0, 5);
+        if (breakOutTime && breakOutTime.length > 5) breakOutTime = breakOutTime.substring(0, 5);
 
-        updateSelectOptions(); 
+        // 仕様：勤務データにデータが存在する場合のみ、デフォルト行（固定行）として生成・表示する
+        if (breakInTime !== '') {
+            injectStaticBreakRow('in', breakInTime);
+        }
+        if (breakOutTime !== '') {
+            injectStaticBreakRow('out', breakOutTime);
+        }
+
+        updateSelectOptions();
         checkFormValidation();
         const correctionRows = tbody.parentNode.querySelectorAll('.correction-history-row');
         const emptyRow = tbody.parentNode.querySelector('.correction-empty-row');
@@ -401,18 +410,59 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePrevNextButtons();
     }
 
+    //モーダルを開いた瞬間に対象日のみの履歴にフィルタリングするよう修正
     editTriggers.forEach(t => {
         t.addEventListener('click', (e) => {
             e.preventDefault();
-            const idx = availableDates.indexOf(t.getAttribute('data-date'));
-            if (idx !== -1) loadDateDataByIndex(idx);
+            const targetDate = t.getAttribute('data-date');
+            const idx = availableDates.indexOf(targetDate);
+
+            if (idx !== -1) {
+                loadDateDataByIndex(idx);
+                filterCorrectionHistoryByDate(targetDate);
+            }
+
+            // モーダル内の全履歴行を走査し、クリックされた日付以外を非表示にする
+            const correctionRows = document.querySelectorAll('.correction-history-row');
+            const emptyRow = document.querySelector('.correction-empty-row');
+            let visibleCount = 0;
+
+            correctionRows.forEach(row => {
+                if (row.getAttribute('data-date') === targetDate) {
+                    row.style.display = ''; // 一致する日だけ表示
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none'; // 他の日は非表示
+                }
+            });
+
+            if (emptyRow) {
+                emptyRow.style.display = (visibleCount === 0) ? '' : 'none';
+            }
+
             modalOverlay.classList.add('is-open');
         });
     });
 
-    if (btnPrev) btnPrev.addEventListener('click', () => currentDataIndex < availableDates.length - 1 && loadDateDataByIndex(currentDataIndex + 1));
-    if (btnNext) btnNext.addEventListener('click', () => currentDataIndex > 0 && loadDateDataByIndex(currentDataIndex - 1));
-    
+    if (btnPrev) {
+        btnPrev.addEventListener('click', () => {
+            currentDataIndex < availableDates.length - 1 && loadDateDataByIndex(currentDataIndex + 1);
+            
+            const newTargetDate = availableDates[currentDataIndex];
+            filterCorrectionHistoryByDate(newTargetDate);
+        });
+    }
+    if (btnNext){
+        btnNext.addEventListener('click', () => {
+            currentDataIndex > 0 && loadDateDataByIndex(currentDataIndex - 1)
+            const newTargetDate = availableDates[currentDataIndex];
+            filterCorrectionHistoryByDate(newTargetDate)
+        });
+    }
+         
+
+
+
     btnAddRow.addEventListener('click', () => createDynamicRow());
 
     modalOverlay.querySelectorAll('.watch-change, .reason-input').forEach(field => {
@@ -484,19 +534,19 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
             body: JSON.stringify({ can_auto_break: isChecked })
         })
-        .then(async response => {
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || '設定の変更に失敗しました。');
-            if (errorContainer) errorContainer.style.display = 'none';
-        })
-        .catch(error => {
-            toggleInput.checked = !isChecked;
-            updateToggleText(!isChecked);
-            if (errorContainer && errorMessage) {
-                errorMessage.textContent = error.message;
-                errorContainer.style.display = 'flex';
-            }
-        });
+            .then(async response => {
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || '設定の変更に失敗しました。');
+                if (errorContainer) errorContainer.style.display = 'none';
+            })
+            .catch(error => {
+                toggleInput.checked = !isChecked;
+                updateToggleText(!isChecked);
+                if (errorContainer && errorMessage) {
+                    errorMessage.textContent = error.message;
+                    errorContainer.style.display = 'flex';
+                }
+            });
     });
 
     if (closeErrorBtn && errorContainer) closeErrorBtn.addEventListener('click', () => errorContainer.style.display = 'none');
@@ -534,3 +584,60 @@ document.addEventListener('DOMContentLoaded', () => {
         observer.observe(errorContainer, { attributes: true, attributeFilter: ['style'] });
     }
 });
+
+// ==========================================================================
+// 🗑️ 打刻修正キャンセルボタンの安全な非同期/同期制御の統合
+// ==========================================================================
+document.addEventListener('DOMContentLoaded', function () {
+    // 既存のメイン親フォームを汚さないよう、隠し取消フォームをJS側で動的にbodyへ生成して配置
+    if (!document.getElementById('hidden-cancel-form')) {
+        const cancelForm = document.createElement('form');
+        cancelForm.id = 'hidden-cancel-form';
+        cancelForm.method = 'POST';
+        cancelForm.style.display = 'none';
+
+        // CSRFトークンの取得とバインド
+        const tokenMeta = document.querySelector('meta[name="csrf-token"]');
+        const tokenValue = tokenMeta ? tokenMeta.getAttribute('content') : (document.querySelector('input[name="_token"]')?.value || '');
+
+        cancelForm.innerHTML = `<input type="hidden" name="_token" value="${tokenValue}">`;
+        document.body.appendChild(cancelForm);
+    }
+
+    // 取消ボタンのクリックイベントを一括捕捉（親モーダルの送信干渉を防止）
+    document.body.addEventListener('click', function (e) {
+        if (e.target && e.target.classList.contains('btn-cancel-correction')) {
+            e.preventDefault();
+            e.stopPropagation(); // 親フォームへのイベントバブリングを即座に遮断
+
+            const id = e.target.getAttribute('data-id');
+            const form = document.getElementById('hidden-cancel-form');
+            if (form && id) {
+                form.action = `/dashboard/correction/${id}/cancel`;
+                form.submit();
+            }
+        }
+    });
+});
+
+// ==========================================================================
+// モーダル内の履歴リストを対象日だけで絞り込む共通関数
+// ==========================================================================
+function filterCorrectionHistoryByDate(targetDate) {
+    const correctionRows = document.querySelectorAll('.correction-history-row');
+    const emptyRow = document.querySelector('.correction-empty-row');
+    let visibleCount = 0;
+
+    correctionRows.forEach(row => {
+        if (row.getAttribute('data-date') === targetDate) {
+            row.style.display = ''; // 開いている日付のみ表示
+            visibleCount++;
+        } else {
+            row.style.display = 'none'; // 他の日付は非表示
+        }
+    });
+
+    if (emptyRow) {
+        emptyRow.style.display = (visibleCount === 0) ? '' : 'none';
+    }
+}

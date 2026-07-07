@@ -31,7 +31,7 @@ class ResetPasswordMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '【SkyDuty】パスワード再設定URLのお知らせ',
+            subject: '【SkyDuty】パスワード再設定のお知らせ',
         );
     }
 
