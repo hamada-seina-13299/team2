@@ -142,7 +142,7 @@ class LoginController extends Controller
 
         // メール送信完了画面（または完了メッセージ付きで同じ画面）を表示
         return view('password.passwordRequest', [
-            'successMessage' => 'パスワード変更用URLをメールで送信しました。',
+            'successMessage' => 'パスワード変更用URLをメールに送信しました',
             'email' => $email,
             'developerUrl' => $resetUrl // 開発中はメールの代わりに画面にURLを出して動作確認できるようにしています
         ]);
@@ -191,8 +191,11 @@ class LoginController extends Controller
 
             // 「変更されました」のポップアップを出すトリガーとして、セッション（フラッシュデータ）に値を格納
             // ログイン画面（index）にリダイレクトします
-            return redirect()->route('login')->with('password_changed', true);
-        }
+            return view('password.passwordReset', [
+                'password_changed' => true, // フロント側でポップアップを表示させるフラグ
+                'token' => $token,
+                'email' => $email
+            ]);        }
 
         $errorList[] = 'ユーザーの特定に失敗しました。もう一度最初からやり直してください。';
         return view('password.passwordReset', [
