@@ -216,7 +216,7 @@ class ShiftController extends Controller
 
         ShiftSubmission::updateOrCreate(
             ['user_id' => Auth::id(), 'year' => $year, 'month' => $month],
-            ['status' => '申請中', 'submitted_at' => now()]
+            ['status' => '申請中']
         );
 
         return back()->with('success', "{$year}年{$month}月分のシフトを提出しました。");
@@ -233,7 +233,7 @@ class ShiftController extends Controller
             ->first();
 
         if ($submission && $submission->status === '申請中') {
-            $submission->update(['status' => '未提出', 'submitted_at' => null]);
+            $submission->update(['status' => '未提出']);
             return back()->with('success', "{$year}年{$month}月分の提出を取り下げました。");
         }
 

@@ -16,13 +16,11 @@ class ShiftSubmission extends Model
         'year',
         'month',
         'status',
-        'submitted_at',
     ];
 
     protected $casts = [
         'year' => 'integer',
         'month' => 'integer',
-        'submitted_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
