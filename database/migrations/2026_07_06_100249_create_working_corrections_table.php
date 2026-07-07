@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade'); // 申請者ID
             $table->date('target_date');                                      // 修正対象日
             
-            // ステータス：デフォルト「申請中」、他は「承認」「却下」の日本語文字列
+            // ステータス：デフォルト「申請中」、他は「承認」「却下」などの日本語文字列
             $table->string('status')->default('申請中');                     
             
             // 修正「前」のデータ（既存の打刻データ、または新規追加ならNull）
@@ -34,7 +34,9 @@ return new class extends Migration
             $table->string('after_working_place')->nullable();
             
             //申請理由及び補足情報をまとめたカラム
-            $table->text('memo')->nullable();                                 
+            $table->text('memo')->nullable();
+            //承認/却下したユーザーの名前を保存するカラムを追加
+            $table->string('updater_name')->nullable();                                 
             
             $table->timestamps();
         });

@@ -25,7 +25,7 @@ class WorkingSeeder extends Seeder
 
             // 実績データに少しブレを出すためのランダム値
             $randomMinuteIn = rand(-25, -5);   // 8:35 〜 8:55
-            $randomMinuteOut = rand(0, 15);  // 18:00 〜 18:20
+            $randomMinuteOut = rand(0, 15);  // 17:30 〜 17:45
 
             Working::create([
                 'user_id' => 1,
@@ -33,9 +33,10 @@ class WorkingSeeder extends Seeder
                 'attendance' => $date->copy()->setTime(9, 0, 0)->addMinutes($randomMinuteIn)->format('H:i:s'),
                 'leaving' => $date->copy()->setTime(17, 30, 0)->addMinutes($randomMinuteOut)->format('H:i:s'),
                 'break_time' => '12:00:00',
+                'break_end_time' => '13:00:00',
                 'working_place' => null,  
                 'commute' => 350,
-                'status' => '承認',
+                'status' => '未申請',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

@@ -25,6 +25,7 @@ class WorkingCorrection extends Model
         'after_break_end_time',
         'after_working_place',
         'memo',
+        'updater_name',
     ];
 
     /**
