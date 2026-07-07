@@ -1,36 +1,45 @@
 @extends('layouts.app')
 
+@section('content')
+{{-- ここでViteのCSSを強制的に読み込ませて、元のデザインを最優先で復活させます --}}
 @vite(['resources/css/attendance.css'])
 
-@section('content')
 <div class="attendance-page">
+
+    {{-- JavaScript用の設定データを配置 --}}
+    <input type="hidden" id="csrf-token-meta" value="{{ csrf_token() }}">
+    <input type="hidden" id="check-late-url-meta" value="{{ route('attendance.check-late') }}">
+    <input type="hidden" id="attendance-url-base-meta" value="{{ url('attendance') }}">
 
     {{-- ユーザー情報 --}}
     <div class="user-info">
         <span class="user-name">{{ $user->name }}</span>
         @if ($user->dept)
-        <span class="user-dept">{{ $user->dept }}</span>
+            <span class="user-dept">{{ $user->dept }}</span>
         @endif
     </div>
 
     {{-- 月切替ヘッダー --}}
     <div class="attendance-header">
         <a href="{{ route('attendance.index', ['year' => $prevMonth->year, 'month' => $prevMonth->month]) }}"
-            class="month-nav-btn" aria-label="前月">&lt;</a>
+           class="month-nav-btn" aria-label="前月">&lt;</a>
 
         <h1 class="month-title">{{ $currentMonth->format('Y年n月') }}</h1>
 
         <a href="{{ route('attendance.index', ['year' => $nextMonth->year, 'month' => $nextMonth->month]) }}"
-            class="month-nav-btn" aria-label="翌月">&gt;</a>
+           class="month-nav-btn" aria-label="翌月">&gt;</a>
     </div>
 
     {{-- 申請ステータス表示 --}}
     <div class="attendance-status-wrapper" style="text-align: center; margin-bottom: 16px; display:flex; justify-content:center; align-items:center; gap:12px;">
-        <span class="status-badge status-{{ $summary['monthly_status'] }}">{{ $summary['monthly_status'] }}</span>
+        <span id="monthly-status-badge" class="status-badge status-{{ $summary['monthly_status'] ?? '未申請' }}">{{ $summary['monthly_status'] ?? '未申請' }}</span>
     </div>
 
+    {{-- 非同期メッセージ用アラートエリア --}}
+    <div id="ajax-alert" class="alert-success" style="display: none;"></div>
+
     @if (session('success'))
-    <div class="alert-success">{{ session('success') }}</div>
+        <div class="alert-success">{{ session('success') }}</div>
     @endif
 
     {{-- 勤怠集計 --}}
@@ -76,17 +85,17 @@
         </div>
     </div>
 
-    {{-- 勤務表 --}}
+    {{-- 勤務表カード --}}
     <div class="attendance-card">
         <div class="card-header">
             <span class="card-icon">📋</span>
             <span class="card-title">勤務表</span>
         </div>
 
-        {{-- タブ --}}
+        {{-- タブボタン --}}
         <div class="tabs">
-            <button type="button" class="tab-btn active" onclick="switchTab('main', this)">主勤怠情報</button>
-            <button type="button" class="tab-btn" onclick="switchTab('other', this)">その他</button>
+            <button type="button" class="tab-btn active" data-tab="main">主勤怠情報</button>
+            <button type="button" class="tab-btn" data-tab="other">その他</button>
         </div>
 
         {{-- 主勤怠情報タブ --}}
@@ -106,66 +115,86 @@
                     </thead>
                     <tbody>
                         @foreach ($calendar as $row)
-                        @php
-                        $date = $row['date'];
-                        $w = $row['working'];
-                        $master = $row['shift_master'];
-                        $isHoliday = $row['is_holiday'];
-                        $isSaturday = $date->dayOfWeek === \Carbon\Carbon::SATURDAY;
-                        $isSunday = $date->dayOfWeek === \Carbon\Carbon::SUNDAY;
+                            @php
+                                $date = $row['date'];
+                                $w = $row['working'];
+                                $master = $row['shift_master'];
+                                $isHoliday = $row['is_holiday'];
+                                $isSaturday = $date->dayOfWeek === \Carbon\Carbon::SATURDAY;
+                                $isSunday   = $date->dayOfWeek === \Carbon\Carbon::SUNDAY;
+                                
+                                $rowClass = ($isSunday || $isHoliday) ? 'row-sunday' : ($isSaturday ? 'row-saturday' : '');
 
-                        // 祝日、または日曜日の場合は同じ赤系統のクラスを適用
-                        $rowClass = ($isSunday || $isHoliday) ? 'row-sunday' : ($isSaturday ? 'row-saturday' : '');
+                                $displayAttendance = '';
+                                $displayLeaving = '';
+                                $isLate = false;
+                                $isEarly = false;
 
-                        $displayAttendance = '';
-                        $displayLeaving = '';
-                        if ($w && $w->attendance) {
-                        $attTime = \Carbon\Carbon::parse($w->attendance);
-                        if ($master && $master->attendance) {
-                        $masterAtt = \Carbon\Carbon::parse($master->attendance);
-                        if ($attTime->lt($masterAtt)) {
-                        $attTime = $masterAtt;
-                        }
-                        }
-                        $displayAttendance = $attTime->format('H:i');
-                        }
-                        if ($w && $w->leaving) {
-                        $leavTime = \Carbon\Carbon::parse($w->leaving);
-                        if ($master && $master->leaving) {
-                        $masterLeav = \Carbon\Carbon::parse($master->leaving);
-                        $masterLeavPlus1 = $masterLeav->copy()->addHour();
-                        if ($leavTime->gt($masterLeav) && $leavTime->lt($masterLeavPlus1)) {
-                        $leavTime = $masterLeav;
-                        }
-                        }
-                        $displayLeaving = $leavTime->format('H:i');
-                        }
-                        @endphp
-                        <tr class="{{ $rowClass }}">
-                            <td class="col-date">
-                                {{ $date->format('n月j日') }}（{{ ['日','月','火','水','木','金','土'][$date->dayOfWeek] }}）
-                                @if($isHoliday)
-                                <span class="holiday-name" style="font-size: 10px; display: block; color: #d64b5f;">{{ $row['holiday_name'] }}</span>
-                                @endif
-                            </td>
-                            <td>
-                                <div class="action-buttons-cell" style="display: flex; gap: 6px; align-items: center;">
-                                    <button type="button" class="custom-stamp-edit-btn js-stamp-edit-btn"
-                                        data-date="{{ $date->format('Y-m-d') }}"
-                                        data-attendance="{{ $w && $w->attendance ? \Carbon\Carbon::parse($w->attendance)->format('H:i') : '' }}"
-                                        data-leaving="{{ $w && $w->leaving ? \Carbon\Carbon::parse($w->leaving)->format('H:i') : '' }}"
-                                        data-break="{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}"
-                                        title="打刻履歴・修正">
-                                        🕒
-                                    </button>
-                                </div>
-                            </td>
-                            <td>{{ $displayAttendance }}</td>
-                            <td>{{ $displayLeaving }}</td>
-                            <td>{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}</td>
-                            <td>{{ $master->working_place ?? '' }}</td>
-                            <td>{{ $w && $w->commute ? number_format($w->commute) . '円' : '' }}</td>
-                        </tr>
+                                // 遅刻判定
+                                if ($w && $w->attendance && $master && $master->attendance) {
+                                    $actualAtt = \Carbon\Carbon::parse($w->attendance);
+                                    $scheduledAtt = \Carbon\Carbon::parse($master->attendance);
+                                    if ($actualAtt->gt($scheduledAtt)) { $isLate = true; }
+                                }
+                                // 早退判定
+                                if ($w && $w->leaving && $master && $master->leaving) {
+                                    $actualLeav = \Carbon\Carbon::parse($w->leaving);
+                                    $scheduledLeav = \Carbon\Carbon::parse($master->leaving);
+                                    if ($actualLeav->lt($scheduledLeav)) { $isEarly = true; }
+                                }
+
+                                if ($w && $w->attendance) {
+                                    $attTime = \Carbon\Carbon::parse($w->attendance);
+                                    if ($master && $master->attendance) {
+                                        $masterAtt = \Carbon\Carbon::parse($master->attendance);
+                                        if ($attTime->lt($masterAtt)) { $attTime = $masterAtt; }
+                                    }
+                                    $displayAttendance = $attTime->format('H:i');
+                                }
+                                if ($w && $w->leaving) {
+                                    $leavTime = \Carbon\Carbon::parse($w->leaving);
+                                    if ($master && $master->leaving) {
+                                        $masterLeav = \Carbon\Carbon::parse($master->leaving);
+                                        $masterLeavPlus1 = $masterLeav->copy()->addHour();
+                                        if ($leavTime->gt($masterLeav) && $leavTime->lt($masterLeavPlus1)) { $leavTime = $masterLeav; }
+                                    }
+                                    $displayLeaving = $leavTime->format('H:i');
+                                }
+                            @endphp
+                            <tr class="{{ $rowClass }}">
+                                <td class="col-date">
+                                    {{ $date->format('n月j日') }}（{{ ['日','月','火','水','木','金','土'][$date->dayOfWeek] }}）
+                                    @if($isHoliday)
+                                        <span class="holiday-name" style="font-size: 10px; display: block; color: #d64b5f;">{{ $row['holiday_name'] }}</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <div class="action-buttons-cell" style="display: flex; gap: 6px; align-items: center;">
+                                        <button type="button" class="custom-stamp-edit-btn js-stamp-edit-btn" 
+                                                data-date="{{ $date->format('Y-m-d') }}"
+                                                data-attendance="{{ $w && $w->attendance ? \Carbon\Carbon::parse($w->attendance)->format('H:i') : '' }}"
+                                                data-leaving="{{ $w && $w->leaving ? \Carbon\Carbon::parse($w->leaving)->format('H:i') : '' }}"
+                                                data-break="{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}">
+                                            🕒
+                                        </button>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if($isLate)
+                                        <span class="late-badge" style="background:#ffecec; color:#d64b5f; padding:2px 4px; border-radius:3px; font-size:11px; margin-right:2px; font-weight:bold;">遅</span>
+                                    @endif
+                                    {{ $displayAttendance }}
+                                </td>
+                                <td>
+                                    @if($isEarly)
+                                        <span class="early-badge" style="background:#fff4ec; color:#e67e22; padding:2px 4px; border-radius:3px; font-size:11px; margin-right:2px; font-weight:bold;">早</span>
+                                    @endif
+                                    {{ $displayLeaving }}
+                                </td>
+                                <td>{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}</td>
+                                <td>{{ $master->working_place ?? '' }}</td>
+                                <td>{{ $w && $w->commute ? number_format($w->commute) . '円' : '' }}</td>
+                            </tr>
                         @endforeach
                     </tbody>
                 </table>
@@ -194,156 +223,132 @@
                     </thead>
                     <tbody>
                         @foreach ($calendar as $row)
-                        @php
-                        $date = $row['date'];
-                        $w = $row['working'];
-                        $master = $row['shift_master'];
-                        $requests = $row['requests'];
-                        $isHoliday = $row['is_holiday'];
-                        $isSaturday = $date->dayOfWeek === \Carbon\Carbon::SATURDAY;
-                        $isSunday = $date->dayOfWeek === \Carbon\Carbon::SUNDAY;
-                        $rowClass = ($isSunday || $isHoliday) ? 'row-sunday' : ($isSaturday ? 'row-saturday' : '');
+                            @php
+                                $date = $row['date'];
+                                $w = $row['working'];
+                                $master = $row['shift_master'];
+                                $requests = $row['requests'];
+                                $isHoliday = $row['is_holiday'];
+                                $isSaturday = $date->dayOfWeek === \Carbon\Carbon::SATURDAY;
+                                $isSunday   = $date->dayOfWeek === \Carbon\Carbon::SUNDAY;
+                                $rowClass = ($isSunday || $isHoliday) ? 'row-sunday' : ($isSaturday ? 'row-saturday' : '');
 
-                        // 勤務日種別の判定
-                        if ($isHoliday) {
-                        $dayType = '祝日';
-                        } elseif ($isSunday) {
-                        $dayType = '法定休日';
-                        } elseif ($isSaturday) {
-                        $dayType = '法定外休日';
-                        } else {
-                        $dayType = '平日';
-                        }
+                                $dayType = $isHoliday ? '祝日' : ($isSunday ? '法定休日' : ($isSaturday ? '法定外休日' : '平日'));
 
-                        $lateTime = '';
-                        $earlyLeaveTime = '';
-                        $otherDeduction = '';
+                                $lateTime = '';
+                                $earlyLeaveTime = '';
+                                $otherDeduction = '';
 
-                        if ($w && $w->attendance && $master && $master->attendance) {
-                        $actualAtt = \Carbon\Carbon::parse($w->attendance);
-                        $scheduledAtt = \Carbon\Carbon::parse($master->attendance);
-                        if ($actualAtt->gt($scheduledAtt)) {
-                        $lateMinutes = $scheduledAtt->diffInMinutes($actualAtt);
-                        $lateTime = sprintf('%d:%02d', intdiv($lateMinutes, 60), $lateMinutes % 60);
-                        }
-                        }
+                                if ($w && $w->attendance && $master && $master->attendance) {
+                                    $actualAtt = \Carbon\Carbon::parse($w->attendance);
+                                    $scheduledAtt = \Carbon\Carbon::parse($master->attendance);
+                                    if ($actualAtt->gt($scheduledAtt)) {
+                                        $lateMinutes = $scheduledAtt->diffInMinutes($actualAtt);
+                                        $lateTime = sprintf('%d:%02d', intdiv($lateMinutes, 60), $lateMinutes % 60);
+                                    }
+                                }
 
-                        if ($w && $w->leaving && $master && $master->leaving) {
-                        $actualLeav = \Carbon\Carbon::parse($w->leaving);
-                        $scheduledLeav = \Carbon\Carbon::parse($master->leaving);
-                        if ($actualLeav->lt($scheduledLeav)) {
-                        $earlyMinutes = $actualLeav->diffInMinutes($scheduledLeav);
-                        $earlyLeaveTime = sprintf('%d:%02d', intdiv($earlyMinutes, 60), $earlyMinutes % 60);
-                        }
-                        }
+                                if ($w && $w->leaving && $master && $master->leaving) {
+                                    $actualLeav = \Carbon\Carbon::parse($w->leaving);
+                                    $scheduledLeav = \Carbon\Carbon::parse($master->leaving);
+                                    if ($actualLeav->lt($scheduledLeav)) {
+                                        $earlyMinutes = $actualLeav->diffInMinutes($scheduledLeav);
+                                        $earlyLeaveTime = sprintf('%d:%02d', intdiv($earlyMinutes, 60), $earlyMinutes % 60);
+                                    }
+                                }
 
-                        foreach ($requests as $req) {
-                        if (in_array($req->request_type, ['欠勤', '有給', '半休'])) {
-                        $otherDeduction = $req->request_type;
-                        }
-                        }
+                                foreach ($requests as $req) {
+                                    if (in_array($req->request_type, ['欠勤', '有給', '半休'])) { $otherDeduction = $req->request_type; }
+                                }
 
-                        $breakStart = null;
-                        $breakEnd = null;
-                        $breakDurationMinutes = null;
+                                $breakStart = null; $breakEnd = null; $breakDurationMinutes = null;
+                                if ($w && $w->leaving && $master && $master->break_start_time && $master->break_time) {
+                                    $breakStart = \Carbon\Carbon::parse($master->break_start_time);
+                                    $breakDurationMinutes = \Carbon\Carbon::parse('00:00')->diffInMinutes(\Carbon\Carbon::parse($master->break_time));
+                                    $breakEnd = $breakStart->copy()->addMinutes($breakDurationMinutes);
+                                }
+                            @endphp
+                            <tr class="{{ $rowClass }}">
+                                <td class="col-date">{{ $date->format('n月j日') }}</td>
+                                <td>{{ $dayType }}</td>
+                                <td>
+                                    <div class="action-buttons-cell" style="display: flex; gap: 6px; align-items: center;">
+                                        <button type="button" class="custom-stamp-edit-btn js-stamp-edit-btn" 
+                                                data-date="{{ $date->format('Y-m-d') }}"
+                                                data-attendance="{{ $w && $w->attendance ? \Carbon\Carbon::parse($w->attendance)->format('H:i') : '' }}"
+                                                data-leaving="{{ $w && $w->leaving ? \Carbon\Carbon::parse($w->leaving)->format('H:i') : '' }}"
+                                                data-break="{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}">
+                                            🕒
+                                        </button>
 
-                        if ($w && $w->leaving && $master && $master->break_start_time && $master->break_time) {
-                        $breakStart = \Carbon\Carbon::parse($master->break_start_time);
-                        $breakDurationMinutes = \Carbon\Carbon::parse('00:00')->diffInMinutes(\Carbon\Carbon::parse($master->break_time));
-                        $breakEnd = $breakStart->copy()->addMinutes($breakDurationMinutes);
-                        }
-                        @endphp
-                        <tr class="{{ $rowClass }}">
-                            <td class="col-date">
-                                {{ $date->format('n月j日') }}（{{ ['日','月','火','水','木','金','土'][$date->dayOfWeek] }}）
-                            </td>
-                            <td>{{ $dayType }}</td>
-                            <td>
-                                <div class="action-buttons-cell" style="display: flex; gap: 6px; align-items: center;">
-                                    <button type="button" class="custom-stamp-edit-btn js-stamp-edit-btn"
-                                        data-date="{{ $date->format('Y-m-d') }}"
-                                        data-attendance="{{ $w && $w->attendance ? \Carbon\Carbon::parse($w->attendance)->format('H:i') : '' }}"
-                                        data-leaving="{{ $w && $w->leaving ? \Carbon\Carbon::parse($w->leaving)->format('H:i') : '' }}"
-                                        data-break="{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}"
-                                        title="打刻履歴・修正">
-                                        🕒
-                                    </button>
-
-                                    @if($requests->count() > 0)
-                                    @foreach($requests as $req)
-                                    <button type="button" class="icon-btn js-edit-btn"
-                                        data-id="{{ $req->id }}"
-                                        data-date="{{ $date->format('Y-m-d') }}"
-                                        data-type="{{ $req->request_type }}"
-                                        data-time="{{ $req->request_time ? \Carbon\Carbon::parse($req->request_time)->format('H:i') : '' }}"
-                                        data-memo="{{ $req->memo }}"
-                                        title="編集 ({{ $req->request_type }})">✏️</button>
-                                    <form action="{{ route('attendance.destroy', $req->id) }}" method="POST"
-                                        class="inline-form" onsubmit="return confirm('この申請を削除しますか？');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="icon-btn" title="削除">🗑️</button>
-                                    </form>
-                                    @endforeach
+                                        @if($requests->count() > 0)
+                                            @foreach($requests as $req)
+                                                <button type="button" class="icon-btn js-edit-btn"
+                                                    data-id="{{ $req->id }}"
+                                                    data-date="{{ $date->format('Y-m-d') }}"
+                                                    data-type="{{ $req->request_type }}"
+                                                    data-time="{{ $req->request_time ? \Carbon\Carbon::parse($req->request_time)->format('H:i') : '' }}"
+                                                    data-memo="{{ $req->memo }}">✏️</button>
+                                                <form action="{{ route('attendance.destroy', $req->id) }}" method="POST"
+                                                      class="inline-form js-delete-form">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="icon-btn" title="削除">🗑️</button>
+                                                </form>
+                                            @endforeach
+                                        @endif
+                                    </div>
+                                </td>
+                                <td>@if($master){{ $master->name ?? '' }}@endif</td>
+                                <td>
+                                    @if($w && $w->attendance)
+                                        @if($lateTime) <span class="late-badge" style="background:#ffecec; color:#d64b5f; padding:2px 4px; border-radius:3px; font-size:11px; margin-right:2px;">遅</span>@endif{{ \Carbon\Carbon::parse($w->attendance)->format('H:i') }}
                                     @endif
-                                </div>
-                            </td>
-                            <td>@if($master){{ $master->name ?? '' }}@endif</td>
-                            <td>
-                                @if($w && $w->attendance)
-                                @if($lateTime) <span class="late-badge" style="background:#ffecec; color:#d64b5f; padding:2px 4px; border-radius:3px; font-size:11px; margin-right:2px;">遅</span>@endif{{ \Carbon\Carbon::parse($w->attendance)->format('H:i') }}
-                                @endif
-                            </td>
-                            <td>{{ $w && $w->leaving ? \Carbon\Carbon::parse($w->leaving)->format('H:i') : '' }}</td>
-                            <td>{{ $breakStart ? $breakStart->format('H:i') : '' }}</td>
-                            <td>{{ $breakEnd ? $breakEnd->format('H:i') : '' }}</td>
-                            <td>{{ $breakDurationMinutes !== null ? sprintf('%d:%02d', intdiv($breakDurationMinutes, 60), $breakDurationMinutes % 60) : '' }}</td>
-                            <td>{{ $lateTime }}</td>
-                            <td>{{ $earlyLeaveTime }}</td>
-                            <td>{{ $otherDeduction }}</td>
-                        </tr>
+                                </td>
+                                <td>
+                                    @if($w && $w->leaving)
+                                        @if($earlyLeaveTime) <span class="early-badge" style="background:#fff4ec; color:#e67e22; padding:2px 4px; border-radius:3px; font-size:11px; margin-right:2px;">早</span>@endif{{ \Carbon\Carbon::parse($w->leaving)->format('H:i') }}
+                                    @endif
+                                </td>
+                                <td>{{ $breakStart ? $breakStart->format('H:i') : '' }}</td>
+                                <td>{{ $breakEnd ? $breakEnd->format('H:i') : '' }}</td>
+                                <td>{{ $breakDurationMinutes !== null ? sprintf('%d:%02d', intdiv($breakDurationMinutes, 60), $breakDurationMinutes % 60) : '' }}</td>
+                                <td>{{ $lateTime }}</td>
+                                <td>{{ $earlyLeaveTime }}</td>
+                                <td>{{ $otherDeduction }}</td>
+                            </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
         </div>
 
-        {{-- 右下に配置された大きなアクションボタンエリア --}}
-        <div class="attendance-card-footer-action">
-            @if ($summary['monthly_status'] === '未申請')
-            @if ($summary['can_submit'])
-            <form action="{{ route('attendance.submit') }}" method="POST" class="inline-form"
-                onsubmit="return confirm('この月の勤怠を申請します。よろしいですか？');">
-                @csrf
-                <input type="hidden" name="year" value="{{ $currentMonth->year }}">
-                <input type="hidden" name="month" value="{{ $currentMonth->month }}">
-                <button type="submit" class="btn-large-action btn-submit-active">申請する</button>
-            </form>
-            @endif
-            @elseif ($summary['monthly_status'] === '申請済み')
-            <form action="{{ route('attendance.cancel') }}" method="POST" class="inline-form"
-                onsubmit="return confirm('申請を取り下げますか？');">
-                @csrf
-                <input type="hidden" name="year" value="{{ $currentMonth->year }}">
-                <input type="hidden" name="month" value="{{ $currentMonth->month }}">
-                <button type="submit" class="btn-large-action btn-submit-cancel">提出取り下げ</button>
-            </form>
-            @elseif ($summary['monthly_status'] === '承認')
-            <button type="button" class="btn-large-action btn-submit-disabled" disabled>承認済みの勤務表</button>
+        {{-- 申請ボタンエリア --}}
+        <div class="attendance-card-footer-action" id="monthly-action-container">
+            @if (($summary['monthly_status'] ?? '未申請') === '未申請')
+                @if ($summary['can_submit'] ?? false)
+                    <form id="monthly-submit-form" action="{{ route('attendance.submit') }}" method="POST" class="inline-form">
+                        @csrf
+                        <input type="hidden" name="year" value="{{ $currentMonth->year }}">
+                        <input type="hidden" name="month" value="{{ $currentMonth->month }}">
+                        <button type="submit" class="btn-large-action btn-submit-active">申請する</button>
+                    </form>
+                @endif
+            @elseif (($summary['monthly_status'] ?? '') === '申請済み')
+                <form id="monthly-cancel-form" action="{{ route('attendance.cancel') }}" method="POST" class="inline-form">
+                    @csrf
+                    <input type="hidden" name="year" value="{{ $currentMonth->year }}">
+                    <input type="hidden" name="month" value="{{ $currentMonth->month }}">
+                    <button type="submit" class="btn-large-action btn-submit-cancel">提出取り下げ</button>
+                </form>
+            @elseif (($summary['monthly_status'] ?? '') === '承認')
+                <button type="button" class="btn-large-action btn-submit-disabled" disabled>承認済みの勤務表</button>
             @endif
         </div>
     </div>
 </div>
 
-{{-- 別ファイルに切り出したモーダル一式を読み込み --}}
+{{-- モーダルファイルのインクルード --}}
 @include('attendance-modals')
 
-<script>
-    function switchTab(tab, btn) {
-        document.querySelectorAll('.tab-panel').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById('tab-' + tab).style.display = 'block';
-        btn.classList.add('active');
-    }
-</script>
 @endsection
