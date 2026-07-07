@@ -165,6 +165,22 @@
     transform: translateY(0);
 }
 
+.floating-bulk-btn-green {
+    background-color: #059669;
+}
+.floating-bulk-btn-green:hover {
+    background-color: #047857;
+}
+
+.floating-bulk-btn-static {
+    cursor: default;
+}
+.floating-bulk-btn-static:hover {
+    background-color: #059669;
+    transform: none;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
 .floating-btn-swap {
     position: relative;
     min-height: 3.25rem;

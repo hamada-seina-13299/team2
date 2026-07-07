@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Shift;
 use App\Models\ShiftMaster;
+use App\Models\ShiftSubmission;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
@@ -60,12 +61,20 @@ class ShiftController extends Controller
             ? $shiftMasters->firstWhere('id', $lastMasterId)
             : null;
 
+        // 💡 月単位の提出状況（未提出 / 申請中 / 承認済み / 差し戻し）
+        $monthSubmission = ShiftSubmission::where('user_id', Auth::id())
+            ->where('year', $year)
+            ->where('month', $month)
+            ->first();
+        $submissionStatus = $monthSubmission->status ?? '未提出';
+
         return view('shift.list', [
             'days' => $days,
             'year' => $year,
             'month' => $month,
             'shiftMasters' => $shiftMasters,
             'lastMaster' => $lastMaster,
+            'submissionStatus' => $submissionStatus,
         ]);
     }
 
@@ -127,7 +136,7 @@ class ShiftController extends Controller
                 'user_id' => Auth::id(),
                 'master_id' => $masterId,
                 'target_date' => $date,
-                'status' => '申請中',
+                'status' => '未申請',
                 'memo'            => null,
                 'attendance_edit' => null,
                 'leaving_edit'    => null,
@@ -163,11 +172,72 @@ class ShiftController extends Controller
         return back()->with('success', count($dates) . "件のシフトをまとめて追加しました。シフト一覧に反映されました。");
     }
 
+    public function updateTime(Request $request)
+    {
+        $validated = $request->validate([
+            'shift_id' => 'required|exists:shifts,id',
+            'master_id' => 'nullable|exists:shift_masters,id',
+            'attendance_edit' => 'required',
+            'leaving_edit' => 'required',
+        ]);
+
+        $shift = Shift::where('id', $validated['shift_id'])
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        if (!empty($validated['master_id'])) {
+            $shift->master_id = $validated['master_id'];
+        }
+        $shift->attendance_edit = $validated['attendance_edit'];
+        $shift->leaving_edit = $validated['leaving_edit'];
+        $shift->save(); // updated_at が自動的に現在時刻に更新される
+
+        $shift->load('shiftMaster');
+
+        return response()->json([
+            'success' => true,
+            'attendance' => date('H:i', strtotime($shift->attendance_edit)),
+            'leaving' => date('H:i', strtotime($shift->leaving_edit)),
+            'master_name' => $shift->shiftMaster->name ?? null,
+        ]);
+    }
+
     public function clearLastMaster(Request $request)
     {
         session()->forget('last_shift_master_id');
 
         return back();
+    }
+
+    public function submit(Request $request)
+    {
+        $year = (int) $request->input('year', now()->year);
+        $month = (int) $request->input('month', now()->month);
+
+        ShiftSubmission::updateOrCreate(
+            ['user_id' => Auth::id(), 'year' => $year, 'month' => $month],
+            ['status' => '申請中', 'submitted_at' => now()]
+        );
+
+        return back()->with('success', "{$year}年{$month}月分のシフトを提出しました。");
+    }
+
+    public function withdraw(Request $request)
+    {
+        $year = (int) $request->input('year', now()->year);
+        $month = (int) $request->input('month', now()->month);
+
+        $submission = ShiftSubmission::where('user_id', Auth::id())
+            ->where('year', $year)
+            ->where('month', $month)
+            ->first();
+
+        if ($submission && $submission->status === '申請中') {
+            $submission->update(['status' => '未提出', 'submitted_at' => null]);
+            return back()->with('success', "{$year}年{$month}月分の提出を取り下げました。");
+        }
+
+        return back()->with('success', '取り下げ対象の申請がありませんでした。');
     }
 
     public function destroyMaster(Request $request)
