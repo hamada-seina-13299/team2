@@ -11,8 +11,11 @@ class ReportController extends Controller
     //    ここから「出勤データ」（今回はダミー）と「シフト提出承認」（管理者のみ）に分岐する。
     public function index(Request $request)
     {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
         return view('reports.index', [
-            'isAdmin' => (bool) (Auth::user()?->isAdmin()),
+            'isAdmin' => (bool) ($user?->isAdmin()),
         ]);
     }
 }

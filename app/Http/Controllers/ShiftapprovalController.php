@@ -14,7 +14,10 @@ class ShiftApprovalController extends Controller
     // 💡 管理者判定。専用ミドルウェアは作らず、各メソッドで簡易チェックする方針。
     private function ensureAdmin(): void
     {
-        abort_unless((bool) (Auth::user()?->isAdmin()), 403);
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        abort_unless((bool) ($user?->isAdmin()), 403);
     }
 
     public function index(Request $request)
@@ -22,7 +25,9 @@ class ShiftApprovalController extends Controller
         $this->ensureAdmin();
 
         // 💡 自分と同じ部署（dept）のメンバーだけを対象にする。admin=1のユーザーは対象外。
-        $myDept = Auth::user()?->dept;
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        $myDept = $user?->dept;
 
         $submissions = ShiftSubmission::with('user')
             ->where('status', '申請中')
