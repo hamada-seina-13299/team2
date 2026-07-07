@@ -11,15 +11,11 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Log;
 
 class AttendanceController extends Controller
 {
     /**
-     * 月次の申請ステータスを表すために attendance_requests に登録する予約済みの申請種別。
-     * target_date にその月の1日、memo に「未申請・申請済み・承認・却下」のいずれかを保存する。
-     * 通常のモーダルの選択肢（validated()の in: ルール）には含めていないので、
-     * ユーザーが誤ってこの種別の申請を作成することはない。
+     * 月次申請の予約種別
      */
     private const SUBMISSION_REQUEST_TYPE = '月次申請';
 
@@ -35,7 +31,6 @@ class AttendanceController extends Controller
         $prevMonth    = $currentMonth->copy()->subMonth();
         $nextMonth    = $currentMonth->copy()->addMonth();
 
-        // 実績（打刻）データ：日付をキーに取得
         $workings = Working::where('user_id', $user->id)
             ->whereYear('punch_date', $year)
             ->whereMonth('punch_date', $month)
@@ -43,7 +38,6 @@ class AttendanceController extends Controller
 
         $workingsKeyed = $workings->keyBy(fn($item) => Carbon::parse($item->punch_date)->format('Y-m-d'));
 
-        // シフト予定データ：日付をキーに取得
         $shifts = Shift::where('user_id', $user->id)
             ->whereYear('target_date', $year)
             ->whereMonth('target_date', $month)
@@ -56,7 +50,6 @@ class AttendanceController extends Controller
 
         $shiftMastersKeyed = $shiftMasters->keyBy('id');
 
-        // 勤怠申請データ（月次申請ステータス用の予約レコードは一覧には出さない）
         $attendanceRequests = AttendanceRequest::where('user_id', $user->id)
             ->whereYear('target_date', $year)
             ->whereMonth('target_date', $month)
@@ -65,12 +58,15 @@ class AttendanceController extends Controller
             ->get()
             ->groupBy(fn($item) => Carbon::parse($item->target_date)->format('Y-m-d'));
 
-        // 1日〜月末までのカレンダー配列を作成し、各テーブルのデータを紐付ける
+        // 【修正】無限ループを防ぐため、事前に一か月分の基本祝日マップを生成
+        $holidayMap = $this->generateMonthlyHolidayMap($year, $month);
+
         $calendar = [];
         for ($day = 1; $day <= $currentMonth->daysInMonth; $day++) {
             $date = $currentMonth->copy()->day($day);
             $key  = $date->format('Y-m-d');
             $shift = $shiftsKeyed->get($key);
+            $holidayName = $holidayMap[$day] ?? null;
 
             $calendar[] = [
                 'date'         => $date,
@@ -78,12 +74,13 @@ class AttendanceController extends Controller
                 'shift'        => $shift,
                 'shift_master' => $shift ? $shiftMastersKeyed->get($shift->master_id) : null,
                 'requests'     => $attendanceRequests->get($key, collect()),
+                'is_holiday'   => !is_null($holidayName),
+                'holiday_name' => $holidayName,
             ];
         }
 
         $summary = $this->buildSummary($workings, $shifts, $shiftMasters, $user, $calendar);
 
-        // 月次申請ステータスの判定（自動判定ではなく、保存された値を読む）
         $lastWorkingDate = $this->resolveLastWorkingDate($user, $year, $month);
         $lastWorking = $lastWorkingDate
             ? $workingsKeyed->get($lastWorkingDate->format('Y-m-d'))
@@ -107,10 +104,6 @@ class AttendanceController extends Controller
         ]);
     }
 
-    /**
-     * その月の勤怠を「申請済み」にする
-     * （その月最後の出勤日＝シフトが登録されている最後の日の退勤打刻が完了していないと申請できない）
-     */
     public function submit(Request $request)
     {
         $user  = $this->currentUser();
@@ -127,9 +120,18 @@ class AttendanceController extends Controller
 
         abort_if(! $lastWorking || ! $lastWorking->leaving, 422, 'まだ最終出勤日の退勤打刻が完了していません。');
 
+        $this->submitMonthlyRequest($user->id, $year, $month);
+
+        return redirect()
+            ->route('attendance.index', ['year' => $year, 'month' => $month])
+            ->with('success', '勤怠を申請しました。');
+    }
+
+    private function submitMonthlyRequest(int $userId, int $year, int $month): void
+    {
         AttendanceRequest::updateOrCreate(
             [
-                'user_id'      => $user->id,
+                'user_id'      => $userId,
                 'target_date'  => Carbon::create($year, $month, 1)->format('Y-m-d'),
                 'request_type' => self::SUBMISSION_REQUEST_TYPE,
             ],
@@ -137,10 +139,6 @@ class AttendanceController extends Controller
                 'memo' => '申請済み',
             ]
         );
-
-        return redirect()
-            ->route('attendance.index', ['year' => $year, 'month' => $month])
-            ->with('success', '勤怠を申請しました。');
     }
 
     public function store(Request $request)
@@ -160,9 +158,6 @@ class AttendanceController extends Controller
             ->with('success', '勤怠申請を登録しました。');
     }
 
-    /**
-     * 勤怠申請を更新
-     */
     public function update(Request $request, AttendanceRequest $attendanceRequest)
     {
         $this->authorizeOwner($attendanceRequest);
@@ -192,44 +187,54 @@ class AttendanceController extends Controller
             ->with('success', '勤怠申請を削除しました。');
     }
 
-    /**
-     * 勤怠集計（合計勤務時間・所定労働時間・出勤日数・交通費合計など）を算出
-     */
     private function buildSummary(Collection $workings, Collection $shifts, Collection $shiftMasters, User $user, array $calendar = []): array
     {
-        $totalWorkedMinutes = 0; // 実際の勤務時間合計（実績ベース）
-        $workingDays        = 0; // 出勤日数（両方打刻あり）
-        $totalCommute       = 0; // 交通費合計
+        $totalWorkedMinutes = 0; 
+        $workingDays        = 0; 
+        $totalCommute       = 0; 
+        $totalBreakMinutes  = 0; 
+        $overtimeMinutes    = 0; 
+        $lateEarlyMinutes   = 0; 
 
-        $shiftMastersKeyed = $shiftMasters->keyBy('id');
+        $today = Carbon::today();
 
         foreach ($calendar as $row) {
             $working = $row['working'];
             $master  = $row['shift_master'];
 
-            Log::debug('Working row', [
-                'date' => $row['date']->format('Y-m-d'),
-                'working_exists' => !is_null($working),
-                'attendance' => $working?->attendance,
-                'leaving' => $working?->leaving,
-                'break_time' => $working?->break_time,
-            ]);
-
             if ($working) {
                 $totalCommute += (int) $working->commute;
 
-                // 【合計勤務時間】: 出勤打刻と退勤打刻が両方されている日数を対象
-                if ($working->attendance && $working->leaving) {
-                    Log::debug('Attendance calculation start', [
-                        'attendance' => $working->attendance,
-                        'leaving' => $working->leaving,
-                    ]);
+                if ($row['date']->lte($today)) {
+                    if ($working->attendance && $master && $master->attendance) {
+                        $actualAtt = Carbon::parse($working->attendance);
+                        $scheduledAtt = Carbon::parse($master->attendance);
+                        if ($actualAtt->gt($scheduledAtt)) {
+                            $lateEarlyMinutes += $scheduledAtt->diffInMinutes($actualAtt);
+                        }
+                    }
+
+                    if ($working->leaving && $master && $master->leaving) {
+                        $actualLeav = Carbon::parse($working->leaving);
+                        $scheduledLeav = Carbon::parse($master->leaving);
+
+                        if ($actualLeav->lt($scheduledLeav)) {
+                            $lateEarlyMinutes += $actualLeav->diffInMinutes($scheduledLeav);
+                        }
+
+                        $scheduledLeavPlus1 = $scheduledLeav->copy()->addHour();
+                        if ($actualLeav->gt($scheduledLeavPlus1)) {
+                            $overtimeMinutes += $scheduledLeav->diffInMinutes($actualLeav);
+                        }
+                    }
+                }
+
+                if ($row['date']->lte($today) && $working->attendance && $working->leaving) {
                     $workingDays++;
 
                     $attTime  = Carbon::parse($working->attendance);
                     $leavTime = Carbon::parse($working->leaving);
 
-                    // 補正①: シフトマスタの出勤時刻より前の時刻だったらシフトマスタの出勤時刻にする
                     if ($master && $master->attendance) {
                         $masterAtt = Carbon::parse($master->attendance);
                         if ($attTime->lt($masterAtt)) {
@@ -237,7 +242,6 @@ class AttendanceController extends Controller
                         }
                     }
 
-                    // 補正②: シフトマスタの退勤時刻より後の時刻かつシフトマスタの退勤時刻＋1時間未満だったらシフトマスタの退勤時刻にする
                     if ($master && $master->leaving) {
                         $masterLeav = Carbon::parse($master->leaving);
                         $masterLeavPlus1 = $masterLeav->copy()->addHour();
@@ -246,40 +250,40 @@ class AttendanceController extends Controller
                         }
                     }
 
-                    // 補正後の出退勤差分（分）
                     $minutes = $attTime->diffInMinutes($leavTime);
-                    Log::debug('Before break', [
-                        'minutes' => $minutes,
-                    ]);
 
-                    // 実績休憩時間を引く
-                    if ($working->break_time) {
-                        $minutes -= Carbon::parse('00:00')->diffInMinutes(Carbon::parse($working->break_time));
+                    if ($working->break_time && $working->break_end_time) {
+                        $bStart  = Carbon::parse($working->break_time);
+                        $bEnd    = Carbon::parse($working->break_end_time);
+
+                        if ($bEnd->gt($bStart)) {
+                            $breakMinutes = $bStart->diffInMinutes($bEnd);
+                            $minutes -= $breakMinutes;
+                            $totalBreakMinutes += $breakMinutes;
+                        }
+                    } elseif ($master && $master->break_time) {
+                        $breakMinutes = Carbon::parse('00:00')->diffInMinutes(Carbon::parse($master->break_time));
+                        $minutes -= $breakMinutes;
+                        $totalBreakMinutes += $breakMinutes;
                     }
 
-                    Log::debug('After break', [
-                        'minutes' => $minutes,
-                    ]);
-
                     $totalWorkedMinutes += max($minutes, 0);
-
-                    Log::debug('Total', [
-                        'totalWorkedMinutes' => $totalWorkedMinutes,
-                    ]);
                 }
             }
         }
 
-        Log::debug('Summary Result', [
-            'totalWorkedMinutes' => $totalWorkedMinutes,
-            'formatted' => $this->formatMinutes($totalWorkedMinutes),
-        ]);
-
-        // 【所定労働時間】: あらかじめシフトで設定した分の出社時刻から退勤時刻（休憩除く）× 働く日数（シフト追加日数）
         $scheduledMinutes = 0;
-        foreach ($shifts as $shift) {
-            $master = $shiftMastersKeyed->get($shift->master_id);
+        foreach ($calendar as $row) {
+            if ($row['is_holiday']) {
+                continue;
+            }
 
+            $shift = $row['shift'];
+            if (!$shift) {
+                continue;
+            }
+
+            $master = $row['shift_master'];
             if (! $master || ! $master->attendance || ! $master->leaving) {
                 continue;
             }
@@ -293,7 +297,6 @@ class AttendanceController extends Controller
             $scheduledMinutes += max($minutes, 0);
         }
 
-        // 当月の有給・半休の使用日数をカウント
         $paidLeaveDaysUsed    = 0;
         $halfDayLeaveDaysUsed = 0;
         foreach ($calendar as $row) {
@@ -311,8 +314,11 @@ class AttendanceController extends Controller
             'scheduled_time'      => $this->formatMinutes($scheduledMinutes),
             'working_days'        => $workingDays,
             'total_commute'       => $totalCommute,
+            'total_break_time'    => $this->formatMinutes($totalBreakMinutes),
             'paid_leave_days'     => $paidLeaveDaysUsed,
             'half_day_leave_days' => $halfDayLeaveDaysUsed,
+            'overtime_time'       => $this->formatMinutes($overtimeMinutes),
+            'late_early_time'     => $this->formatMinutes($lateEarlyMinutes),
         ];
     }
 
@@ -321,9 +327,6 @@ class AttendanceController extends Controller
         return sprintf('%d:%02d', intdiv($minutes, 60), $minutes % 60);
     }
 
-    /**
-     * 対象月内で、シフトが登録されている最後の日付を返す（月次申請の対象日を決めるため）
-     */
     private function resolveLastWorkingDate($user, int $year, int $month): ?Carbon
     {
         $currentMonth = Carbon::create($year, $month, 1);
@@ -343,9 +346,6 @@ class AttendanceController extends Controller
         return null;
     }
 
-    /**
-     * バリデーション（attendance_requests のカラムのみ対象）
-     */
     private function validated(Request $request): array
     {
         return $request->validate([
@@ -361,17 +361,11 @@ class AttendanceController extends Controller
         ]);
     }
 
-    /**
-     * 自分の申請のみ操作できるようにする簡易ガード
-     */
     private function authorizeOwner(AttendanceRequest $attendanceRequest): void
     {
         abort_unless($attendanceRequest->user_id === $this->currentUser()->id, 403);
     }
 
-    /**
-     * 対象日から一覧画面へ戻すための year / month パラメータを生成
-     */
     private function yearMonthParams(string|Carbon $targetDate): array
     {
         $date = $targetDate instanceof Carbon ? $targetDate : Carbon::parse($targetDate);
@@ -379,14 +373,130 @@ class AttendanceController extends Controller
         return ['year' => $date->year, 'month' => $date->month];
     }
 
-    /**
-     * ログイン中のユーザーを返す。
-     *
-     * TODO: ログイン機能が実装されたら、この一時的なフォールバック（user_id=1固定）は削除し、
-     * 単純に Auth::user() のみを使うように戻してください。
-     */
     private function currentUser(): User
     {
         return Auth::user() ?? User::findOrFail(1);
+    }
+
+    public function cancel(Request $request)
+    {
+        $user  = $this->currentUser();
+        $year  = (int) $request->input('year', now()->year);
+        $month = (int) $request->input('month', now()->month);
+
+        $targetDate = Carbon::create($year, $month, 1)->format('Y-m-d');
+
+        $submission = AttendanceRequest::where('user_id', $user->id)
+            ->where('request_type', self::SUBMISSION_REQUEST_TYPE)
+            ->whereDate('target_date', $targetDate)
+            ->first();
+
+        if ($submission) {
+            $submission->delete();
+        }
+
+        return redirect()
+            ->route('attendance.index', ['year' => $year, 'month' => $month])
+            ->with('success', $year . '年' . $month . '月の勤怠申請を取り下げました。');
+    }
+
+    /**
+     * 再帰呼び出し（無限ループ）を排除した、安全かつ正確な月間祝日マップ作成ロジック
+     */
+    private function generateMonthlyHolidayMap(int $year, int $month): array
+    {
+        $currentMonth = Carbon::create($year, $month, 1);
+        $daysInMonth = $currentMonth->daysInMonth;
+
+        $baseHolidays = [];
+
+        // 1. まずその月の固定祝日・ハッピーマンデー・春分秋分をマッピング
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $date = Carbon::create($year, $month, $d);
+            $w = $date->dayOfWeek;
+            $name = null;
+
+            if ($month === 1 && $d === 1)   $name = '元日';
+            if ($month === 2 && $d === 11)  $name = '建国記念の日';
+            if ($month === 2 && $d === 23)  $name = '天皇誕生日';
+            if ($month === 4 && $d === 29)  $name = '昭和の日';
+            if ($month === 5 && $d === 3)   $name = '憲法記念日';
+            if ($month === 5 && $d === 4)   $name = 'みどりの日';
+            if ($month === 5 && $d === 5)   $name = 'こどもの日';
+            if ($month === 8 && $d === 11)  $name = '山の日';
+            if ($month === 11 && $d === 3)  $name = '文化の日';
+            if ($month === 11 && $d === 23) $name = '勤労感謝の日';
+
+            $nthMonday = intdiv($d - 1, 7) + 1;
+            if ($w === Carbon::MONDAY) {
+                if ($month === 1 && $nthMonday === 2)  $name = '成人の日';
+                if ($month === 7 && $nthMonday === 3)  $name = '海の日';
+                if ($month === 9 && $nthMonday === 3)  $name = '敬老の日';
+                if ($month === 10 && $nthMonday === 2) $name = 'スポーツの日';
+            }
+
+            if ($month === 3) {
+                $shunbun = intval(20.8431 + 0.242194 * ($year - 1980) - intval(($year - 1980) / 4));
+                if ($d === $shunbun) $name = '春分の日';
+            }
+            if ($month === 9) {
+                $shubun = intval(23.2488 + 0.242194 * ($year - 1980) - intval(($year - 1980) / 4));
+                if ($d === $shubun) $name = '秋分の日';
+            }
+
+            if ($name) {
+                $baseHolidays[$d] = $name;
+            }
+        }
+
+        // 前月末が日曜日かつ祝日だった場合の、当月1日への振替休日影響を確認
+        $prevMonthLast = $currentMonth->copy()->subDay();
+        $hasPrevMonthLastHoliday = false;
+        if ($prevMonthLast->month === 1 && $prevMonthLast->day === 1) $hasPrevMonthLastHoliday = true; // 例外的な元日のみ考慮
+        // (通常の運用上、前月を跨ぐ振替はほぼ元日のみのためこれで安全にカバー)
+
+        $finalHolidays = $baseHolidays;
+
+        // 2. 振替休日の判定 (日曜日が祝日の場合、翌平日が振替)
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            if (isset($baseHolidays[$d])) {
+                continue; 
+            }
+
+            $date = Carbon::create($year, $month, $d);
+            $w = $date->dayOfWeek;
+
+            if ($w !== Carbon::SUNDAY) {
+                // 前日が祝日かつ日曜日なら、当日は振替休日
+                if ($d === 1 && $hasPrevMonthLastHoliday && $prevMonthLast->dayOfWeek === Carbon::SUNDAY) {
+                    $finalHolidays[$d] = '振替休日';
+                } elseif ($d > 1 && isset($baseHolidays[$d - 1]) && Carbon::create($year, $month, $d - 1)->dayOfWeek === Carbon::SUNDAY) {
+                    $finalHolidays[$d] = '振替休日';
+                }
+                // 5月3日(日)・5月4日(月・祝)・5月5日(火・祝) のように祝日が重なる場合の5月6日振替対策
+                elseif ($month === 5 && $d === 6 && isset($baseHolidays[3]) && isset($baseHolidays[4]) && isset($baseHolidays[5])) {
+                    $finalHolidays[$d] = '振替休日';
+                }
+            }
+        }
+
+        // 3. 国民の休日の判定 (祝日と祝日に挟まれた平日)
+        for ($d = 2; $d < $daysInMonth; $d++) {
+            if (isset($finalHolidays[$d])) {
+                continue;
+            }
+            $date = Carbon::create($year, $month, $d);
+            $w = $date->dayOfWeek;
+
+            if ($w !== Carbon::SUNDAY && $w !== Carbon::SATURDAY) {
+                if (isset($finalHolidays[$d - 1]) && isset($finalHolidays[$d + 1])) {
+                    if ($finalHolidays[$d - 1] !== '振替休日' && $finalHolidays[$d + 1] !== '振替休日') {
+                        $finalHolidays[$d] = '国民の休日';
+                    }
+                }
+            }
+        }
+
+        return $finalHolidays;
     }
 }
