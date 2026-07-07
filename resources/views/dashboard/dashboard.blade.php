@@ -4,13 +4,13 @@
 
 @section('content')
 
-<!-- 💡 サンプル画像のような上部固定の動的エラーアラート用コンテナ -->
-<div id="dynamic-flash-error" style="display: none; background-color: #f43f5e; color: #fff; padding: 12px 24px; font-weight: bold; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; width: 100%; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+<!-- 上部固定の動的エラーアラート用コンテナ -->
+<div id="dynamic-flash-error" style="display: none; background-color: #fee2e2; color: #991b1b; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; align-items: center; justify-content: space-between;">
     <div style="display: flex; align-items: center; gap: 8px;">
         <span>⚠️</span>
         <span id="dynamic-flash-message"></span>
     </div>
-    <button type="button" id="close-dynamic-flash" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer; font-weight: bold;">&times;</button>
+    <button type="button" id="close-dynamic-flash" style="background: none; border: none; color: #991b1b; font-size: 20px; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
 </div>
 
 @if(session('success'))
@@ -25,12 +25,12 @@
 @endif
 
 <div class="main-card">
-    @if(!$todayAttendance)
-    <div class="status-bar">出勤準備中</div>
-    @elseif($todayAttendance && is_null($todayAttendance->leaving))
+    @if($latestOpenAttendance)
     <div class="status-bar">ただいま勤務中</div>
+    @elseif($todayAttendance && !is_null($todayAttendance->leaving))
+    <div class="status-bar" style="background-color: #6b7280;">本日の勤務お疲れ様でした。</div>
     @else
-    <div class="status-bar status-finished">本日の勤務お疲れ様でした</div>
+    <div class="status-bar">出勤準備中</div>
     @endif
 
     <div class="card-body">
@@ -47,7 +47,6 @@
                 @if($todayShift)
                 <strong>予定勤務地：</strong> {{ $todayShift->master_name }}<br>
                 <strong>勤務時間：</strong> {{ \Carbon\Carbon::parse($todayShift->attendance)->format('H:i') }} ～ {{ \Carbon\Carbon::parse($todayShift->leaving)->format('H:i') }}<br>
-                <!--計算済みの休憩時間レンジ（例: 12:00 ～ 13:00）を表示 -->
                 <strong>休憩時間：</strong> {{ $displayBreakRange }}
                 @else
                 <strong>予定勤務地：</strong> シフト未登録<br>
@@ -61,14 +60,16 @@
             <div class="info-row">
                 <span class="info-label">勤務地</span>
                 <span class="info-value">
-                    <!-- 勤務地名を表示 -->
                     <span id="current-working-place">{{ $displayWorkingPlace }}</span>
                     <a href="#" id="trigger-location-change" class="change-link">変更 ⓘ</a>
                 </span>
             </div>
 
             <div class="punch-buttons">
-                @if(!$todayAttendance)
+                {{-- 出勤ボタンの有効化条件：
+                     1. 未退勤のオープンなデータがないこと
+                     2. かつ、本日のデータがまだ存在しない（または本日のデータがあっても出勤・退勤どちらも空）こと --}}
+                @if(!$latestOpenAttendance && (!$todayAttendance || (is_null($todayAttendance->attendance) && is_null($todayAttendance->leaving))))
                 <form action="{{ route('clock.in') }}" method="POST" style="flex: 1;">
                     @csrf
                     <button type="submit" class="btn-punch btn-in">出勤</button>
@@ -77,9 +78,12 @@
                 <button class="btn-punch" disabled>出勤</button>
                 @endif
 
-                @if($todayAttendance && is_null($todayAttendance->leaving))
+                {{-- 退勤ボタンの有効化条件：
+                    未退勤のオープンなデータが存在すること --}}
+                @if($latestOpenAttendance)
                 <form action="{{ route('clock.out') }}" method="POST" style="flex: 1;">
                     @csrf
+                    <input type="hidden" name="attendance_id" value="{{ $latestOpenAttendance->id }}">
                     <button type="submit" class="btn-punch btn-out">退勤</button>
                 </form>
                 @else
@@ -100,19 +104,33 @@
             </div>
 
             <div class="sub-actions">
-                <button class="btn-break" {{ ($todayAttendance && is_null($todayAttendance->leaving)) ? '' : 'disabled' }}>
-                    休憩開始
-                </button>
+                <form action="{{ route('dashboard.breakIn') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn-break"
+                        {{ (
+                            $latestOpenAttendance && 
+                            is_null($latestOpenAttendance->break_time)
+                        ) ? '' : 'disabled' }}>
+                        休憩開始
+                    </button>
+                </form>
             </div>
 
             <div class="bottom-actions">
                 <button class="btn-outline">📝 勤怠申請</button>
+
+                {{-- 💡 要望2: 上部ボタンのデータ属性を「最新の打刻履歴データ」に自動追従させます --}}
+                @php
+                $latestRecord = $history->first(); // 履歴の1件目（最新）
+                @endphp
                 <button class="btn-outline btn-edit-trigger"
-                    data-date="{{ \Carbon\Carbon::today()->format('Y-m-d') }}"
-                    data-date-label="{{ \Carbon\Carbon::today()->isoFormat('YYYY年M月D日(ddd)') }}"
-                    data-attendance="{{ $todayAttendance ? \Carbon\Carbon::parse($todayAttendance->attendance)->format('H:i') : '' }}"
-                    data-leaving="{{ ($todayAttendance && $todayAttendance->leaving) ? \Carbon\Carbon::parse($todayAttendance->leaving)->format('H:i') : '' }}"
-                    data-place="{{ $displayWorkingPlace }}">
+                    data-date="{{ $latestRecord ? $latestRecord->punch_date : \Carbon\Carbon::today()->format('Y-m-d') }}"
+                    data-date-label="{{ $latestRecord ? \Carbon\Carbon::parse($latestRecord->punch_date)->isoFormat('YYYY年M月D日(ddd)') : \Carbon\Carbon::today()->isoFormat('YYYY年M月D日(ddd)') }}"
+                    data-attendance="{{ ($latestRecord && $latestRecord->attendance) ? \Carbon\Carbon::parse($latestRecord->attendance)->format('H:i') : '' }}"
+                    data-leaving="{{ ($latestRecord && $latestRecord->leaving) ? \Carbon\Carbon::parse($latestRecord->leaving)->format('H:i') : '' }}"
+                    data-break="{{ ($latestRecord && $latestRecord->break_time) ? \Carbon\Carbon::parse($latestRecord->break_time)->format('H:i') : '' }}"
+                    data-break-out="{{ $latestRecord ? $latestRecord->break_out : '' }}"
+                    data-place="{{ $latestRecord ? $latestRecord->working_place : $displayWorkingPlace }}">
                     🔄 打刻修正
                 </button>
             </div>
@@ -143,7 +161,7 @@ $groupedHistory = $history->groupBy('punch_date');
     }
     @endphp
     <div style="display: flex; gap: 40px; margin-bottom: 10px; font-size: 15px; align-items: center;">
-        <div>🟢 <strong>出勤:</strong> {{ $attTime }} ({{ $record->working_place }})</div>
+        <div>🟢 <strong>出勤:</strong> {{ $attTime }} &nbsp; {{ $record->working_place }}</div>
         <div>
             🔴 <strong>退勤:</strong> {{ $leaveTime }}
             @if($isNextDay) <span style="color: #ef4444; font-weight: bold;">(翌日)</span> @endif
@@ -155,6 +173,8 @@ $groupedHistory = $history->groupBy('punch_date');
                 data-date-label="{{ $dateLabel }}"
                 data-attendance="{{ $record->attendance ? \Carbon\Carbon::parse($record->attendance)->format('H:i') : '' }}"
                 data-leaving="{{ $record->leaving ? \Carbon\Carbon::parse($record->leaving)->format('H:i') : '' }}"
+                data-break="{{ $record->break_time ? \Carbon\Carbon::parse($record->break_time)->format('H:i') : '' }}"
+                data-break-out="{{ $record->break_out }}"
                 data-place="{{ $record->working_place }}">
                 ✏️ 修正
             </button>
@@ -168,7 +188,9 @@ $groupedHistory = $history->groupBy('punch_date');
 
 
 <div class="modal-overlay" id="fix-modal-overlay">
-    <div id="available-dates-data" data-dates="{{ json_encode($history->pluck('punch_date')->unique()->values()->all()) }}" style="display:none;"></div>
+    {{-- 過去全ての打刻日（一週間分に限定しないリスト）を配列としてJSに渡す --}}
+    <div id="available-dates-data" data-dates="{{ json_encode($allWorkingDates) }}" style="display:none;"></div>
+    <div id="all-history-json-data" data-history="{{ $allHistoryJson }}" style="display:none;"></div>
     <div id="available-places-data" data-places="{{ json_encode($workingPlaces) }}" style="display:none;"></div>
 
     <div class="modal-container">
@@ -192,7 +214,6 @@ $groupedHistory = $history->groupBy('punch_date');
                         <th style="width: 20%;">打刻時間</th>
                         <th style="width: 15%;">勤務地</th>
                         <th>申請理由</th>
-                        <th style="width: 18%;">既定休憩追加</th>
                         <th style="width: 8%;">削除</th>
                     </tr>
                 </thead>
@@ -207,7 +228,6 @@ $groupedHistory = $history->groupBy('punch_date');
                             <input type="text" name="attendance_reason" id="modal-attendance-reason" class="modal-input reason-input" placeholder="例: 打刻忘れのため">
                             <div class="error-msg" id="error-attendance" style="color: #ef4444; font-size: 11px; margin-top: 4px; display: none;">※申請理由を入力してください</div>
                         </td>
-                        <td style="color: #ccc; font-size: 12px;">-</td>
                         <td><input type="checkbox" name="delete_attendance" value="1" class="modal-checkbox watch-change"></td>
                     </tr>
 
@@ -220,12 +240,6 @@ $groupedHistory = $history->groupBy('punch_date');
                         <td style="text-align: left;">
                             <input type="text" name="leaving_reason" id="modal-leaving-reason" class="modal-input reason-input" placeholder="例: 残業の申請忘れ">
                             <div class="error-msg" id="error-leaving" style="color: #ef4444; font-size: 11px; margin-top: 4px; display: none;">※申請理由を入力してください</div>
-                        </td>
-                        <td>
-                            <select id="modal-break-auto" class="modal-select watch-change">
-                                <option value="OFF">OFF</option>
-                                <option value="自動追加">休憩を自動追加</option>
-                            </select>
                         </td>
                         <td><input type="checkbox" name="delete_leaving" value="1" class="modal-checkbox watch-change"></td>
                     </tr>
@@ -250,10 +264,56 @@ $groupedHistory = $history->groupBy('punch_date');
                         <th>更新日時</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <tr>
+                <tbody id="modal-correction-history-tbody">
+                    {{-- 登録された履歴をループ表示（初期状態はJSで出し分けするため全て描画） --}}
+                    @forelse($correctionHistory as $correction)
+                    <tr class="correction-history-row" data-date="{{ $correction->target_date }}">
+                        <td>
+                            <button type="button" class="btn-cancel-correction" data-id="{{ $correction->id }}" style="background-color: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">
+                                取消
+                            </button>
+                        </td>
+                        <td>{{ \Carbon\Carbon::parse($correction->created_at)->format('Y/m/d H:i') }}</td>
+                        <td>
+                            {{-- ステータスごとに色を変えるとおしゃれです --}}
+                            @if($correction->status === '承認')
+                            <span style="color: #10b981; font-weight: bold;">承認</span>
+                            @elseif($correction->status === '却下')
+                            <span style="color: #ef4444; font-weight: bold;">却下</span>
+                            @else
+                            <span style="color: #f59e0b; font-weight: bold;">申請中</span>
+                            @endif
+                        </td>
+                        <td>
+                            {{-- 勤務地が変更前と後で違えば「勤務地変更」、時間が変わっていれば「時間修正」など --}}
+                            @if($correction->before_working_place !== $correction->after_working_place)
+                            勤務地変更
+                            @else
+                            時間修正
+                            @endif
+                        </td>
+                        <td style="color: #9ca3af; text-align: left; font-family: monospace;">
+                            @if($correction->before_attendance) 出:{{ \Carbon\Carbon::parse($correction->before_attendance)->format('H:i') }}<br>@endif
+                            @if($correction->before_leaving) 退:{{ \Carbon\Carbon::parse($correction->before_leaving)->format('H:i') }}<br>@endif
+                            @if($correction->before_break_time) 憩始:{{ \Carbon\Carbon::parse($correction->before_break_time)->format('H:i') }}<br>@endif
+                            @if($correction->before_break_end_time) 憩終:{{ \Carbon\Carbon::parse($correction->before_break_end_time)->format('H:i') }}<br>@endif
+                            <span style="color: #6b7280;">📍場所: {{ $correction->before_working_place }}</span>
+                        </td>
+                        <td style="color: #111827; text-align: left; font-family: monospace; font-weight: bold;">
+                            @if($correction->after_attendance) 出:{{ \Carbon\Carbon::parse($correction->after_attendance)->format('H:i') }}<br>@endif
+                            @if($correction->after_leaving) 退:{{ \Carbon\Carbon::parse($correction->after_leaving)->format('H:i') }}<br>@endif
+                            @if($correction->after_break_time) 憩始:{{ \Carbon\Carbon::parse($correction->after_break_time)->format('H:i') }}<br>@endif
+                            @if($correction->after_break_end_time) 憩終:{{ \Carbon\Carbon::parse($correction->after_break_end_time)->format('H:i') }}<br>@endif
+                            <span style="color: #1aaba8;">📍場所: {{ $correction->after_working_place }}</span>
+                        </td>
+                        <td style="text-align: left; max-width: 150px; white-space: pre-line;">{{ $correction->memo }}</td>
+                        <td>{{ \Carbon\Carbon::parse($correction->updated_at)->format('Y/m/d H:i') }}</td>
+                    </tr>
+                    @empty
+                    <tr class="correction-empty-row">
                         <td colspan="8" style="color: #9ca3af; padding: 12px;">申請履歴はありません。</td>
                     </tr>
+                    @endforelse
                 </tbody>
             </table>
 
@@ -265,4 +325,22 @@ $groupedHistory = $history->groupBy('punch_date');
 
     </div>
 </div>
+<form id="hidden-cancel-form" method="POST" style="display: none;">
+    @csrf
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 取消ボタンがクリックされた時の処理
+    document.body.addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('btn-cancel-correction')) {
+            const id = e.target.getAttribute('data-id');
+            const form = document.getElementById('hidden-cancel-form');
+            // ルートURLを動的に生成してセット
+            form.action = `/dashboard/correction/${id}/cancel`;
+            form.submit();
+        }
+    });
+});
+</script>
 @endsection

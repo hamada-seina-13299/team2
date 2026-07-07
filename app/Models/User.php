@@ -18,6 +18,8 @@ class User extends Authenticatable
         'password',
         'dept',
         'entering_company_date',
+        'paid_leave_days',
+        'half_day_leave_days'
     ];
 
     protected $hidden = [
