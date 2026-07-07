@@ -174,6 +174,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const el = document.getElementById('error-data');
         return el ? el.getAttribute('data-shift-delete-url') : '';
     })();
+    const shiftUpdateTimeUrl = (function () {
+        const el = document.getElementById('error-data');
+        return el ? el.getAttribute('data-shift-update-time-url') : '';
+    })();
 
     function escapeHtml(str) {
         const div = document.createElement('div');
@@ -189,10 +193,18 @@ document.addEventListener('DOMContentLoaded', function () {
         if (checkboxCell) checkboxCell.innerHTML = '<span class="text-xs text-gray-300 select-none">-</span>';
 
         const attendanceCell = row.querySelector('.cell-attendance');
-        if (attendanceCell) attendanceCell.textContent = shift.attendance;
+        if (attendanceCell) {
+            attendanceCell.innerHTML =
+                '<span class="attendance-text">' + escapeHtml(shift.attendance) + '</span>' +
+                '<input type="time" class="attendance-input hidden w-full border rounded-lg p-1 text-sm text-center" value="' + escapeHtml(shift.attendance) + '">';
+        }
 
         const leavingCell = row.querySelector('.cell-leaving');
-        if (leavingCell) leavingCell.textContent = shift.leaving;
+        if (leavingCell) {
+            leavingCell.innerHTML =
+                '<span class="leaving-text">' + escapeHtml(shift.leaving) + '</span>' +
+                '<input type="time" class="leaving-input hidden w-full border rounded-lg p-1 text-sm text-center" value="' + escapeHtml(shift.leaving) + '">';
+        }
 
         const placeCell = row.querySelector('.cell-place');
         if (placeCell) {
@@ -203,7 +215,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const editCell = row.querySelector('.cell-edit');
         if (editCell) {
-            editCell.innerHTML = '<a href="' + shift.edit_url + '" class="btn-edit inline-block text-center">修正</a>';
+            editCell.innerHTML =
+                '<button type="button" class="btn-edit edit-shift-btn inline-block text-center" data-shift-id="' + shift.shift_id + '" data-editing="0">修正</button>';
+            bindEditButton(editCell.querySelector('.edit-shift-btn'));
         }
 
         const deleteCell = row.querySelector('.cell-delete');
@@ -268,6 +282,115 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.querySelectorAll('.delete-shift-form').forEach(bindDeleteForm);
+
+    // 💡 勤務地セレクト変更時に、修正後の出勤・退勤時刻をそのマスタの標準時刻へ自動入力
+    document.querySelectorAll('.place-select').forEach(select => {
+        select.addEventListener('change', function () {
+            const row = this.closest('tr');
+            if (!row) return;
+            const option = this.selectedOptions[0];
+            if (!option) return;
+
+            const attendanceInput = row.querySelector('.attendance-input');
+            const leavingInput = row.querySelector('.leaving-input');
+            if (attendanceInput) attendanceInput.value = option.getAttribute('data-attendance') || '';
+            if (leavingInput) leavingInput.value = option.getAttribute('data-leaving') || '';
+        });
+    });
+
+    // 💡 「修正」→ テキストがinputに変わり「保存」表示に。「保存」を押すとAjaxでその場保存し「修正」に戻す
+    function bindEditButton(btn) {
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+            const row = this.closest('tr');
+            if (!row) return;
+
+            const attendanceText = row.querySelector('.attendance-text');
+            const attendanceInput = row.querySelector('.attendance-input');
+            const leavingText = row.querySelector('.leaving-text');
+            const leavingInput = row.querySelector('.leaving-input');
+            const placeText = row.querySelector('.place-text');
+            const placeSelect = row.querySelector('.place-select');
+            if (!attendanceText || !attendanceInput || !leavingText || !leavingInput) return;
+
+            const isEditing = this.getAttribute('data-editing') === '1';
+
+            if (!isEditing) {
+                // 編集モードへ切り替え
+                attendanceText.classList.add('hidden');
+                attendanceInput.classList.remove('hidden');
+                leavingText.classList.add('hidden');
+                leavingInput.classList.remove('hidden');
+                if (placeText && placeSelect) {
+                    placeText.classList.add('hidden');
+                    placeSelect.classList.remove('hidden');
+                }
+
+                this.textContent = '保存';
+                this.setAttribute('data-editing', '1');
+                return;
+            }
+
+            // 保存処理
+            if (!shiftUpdateTimeUrl) return;
+
+            const shiftId = this.getAttribute('data-shift-id');
+            const originalLabel = this.textContent;
+            this.disabled = true;
+            this.textContent = '保存中...';
+
+            const payload = {
+                _token: csrfToken,
+                shift_id: shiftId,
+                attendance_edit: attendanceInput.value,
+                leaving_edit: leavingInput.value,
+            };
+            if (placeSelect) payload.master_id = placeSelect.value;
+
+            fetch(shiftUpdateTimeUrl, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                },
+                body: new URLSearchParams(payload),
+            })
+                .then(res => res.json().then(data => ({ ok: res.ok, data })))
+                .then(({ ok, data }) => {
+                    if (!ok || !data || !data.success) {
+                        alert((data && data.message) || '保存に失敗しました。');
+                        this.disabled = false;
+                        this.textContent = originalLabel;
+                        return;
+                    }
+
+                    attendanceText.textContent = data.attendance;
+                    leavingText.textContent = data.leaving;
+
+                    attendanceText.classList.remove('hidden');
+                    attendanceInput.classList.add('hidden');
+                    leavingText.classList.remove('hidden');
+                    leavingInput.classList.add('hidden');
+
+                    if (placeText && placeSelect && data.master_name) {
+                        placeText.innerHTML = '📍<span class="truncate font-medium text-gray-700">' + escapeHtml(data.master_name) + '</span>';
+                        placeText.classList.remove('hidden');
+                        placeSelect.classList.add('hidden');
+                    }
+
+                    this.disabled = false;
+                    this.textContent = '修正';
+                    this.setAttribute('data-editing', '0');
+                })
+                .catch(() => {
+                    alert('通信エラーが発生しました。お手数ですが再度お試しください。');
+                    this.disabled = false;
+                    this.textContent = originalLabel;
+                });
+        });
+    }
+
+    document.querySelectorAll('.edit-shift-btn').forEach(bindEditButton);
 
     document.querySelectorAll('.delete-master-btn').forEach(btn => {
         btn.addEventListener('click', function (e) {

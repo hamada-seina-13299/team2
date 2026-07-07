@@ -11,7 +11,9 @@
 @section('content')
     <div class="w-full p-6 bg-gray-50 min-h-screen rounded-xl">
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-            <h1 class="text-lg font-bold mb-2 text-gray-800">シフト一覧</h1>
+            <div class="flex items-center justify-between mb-2">
+                <h1 class="text-lg font-bold text-gray-800">シフト一覧</h1>
+            </div>
 
             <div class="flex items-center justify-center gap-1">
                 <a href="{{ route('shift.list', ['year' => $month == 1 ? $year - 1 : $year, 'month' => $month == 1 ? 12 : $month - 1]) }}" 
@@ -98,34 +100,57 @@
                                 @endif
                             </td>
                             
+                            @php
+                                $displayAttendance = $day['shift']
+                                    ? ($day['shift']->attendance_edit ?? $day['shift']->shiftMaster->attendance)
+                                    : null;
+                                $displayLeaving = $day['shift']
+                                    ? ($day['shift']->leaving_edit ?? $day['shift']->shiftMaster->leaving)
+                                    : null;
+                            @endphp
                             <td class="p-3 text-sm text-gray-600 text-center align-middle cell-attendance">
                                 @if($day['shift'])
-                                    {{ date('H:i', strtotime($day['shift']->shiftMaster->attendance)) }}
+                                    <span class="attendance-text">{{ date('H:i', strtotime($displayAttendance)) }}</span>
+                                    <input type="time" class="attendance-input hidden w-full border rounded-lg p-1 text-sm text-center" value="{{ date('H:i', strtotime($displayAttendance)) }}">
                                 @else
                                     --:--
                                 @endif
                             </td>
                             <td class="p-3 text-sm text-gray-600 text-center align-middle cell-leaving">
                                 @if($day['shift'])
-                                    {{ date('H:i', strtotime($day['shift']->shiftMaster->leaving)) }}
+                                    <span class="leaving-text">{{ date('H:i', strtotime($displayLeaving)) }}</span>
+                                    <input type="time" class="leaving-input hidden w-full border rounded-lg p-1 text-sm text-center" value="{{ date('H:i', strtotime($displayLeaving)) }}">
                                 @else
                                     --:--
                                 @endif
                             </td>
                             <td class="p-3 text-sm text-gray-600 text-center align-middle truncate cell-place">
                                 @if($day['shift'])
-                                    <span class="inline-flex items-center justify-center gap-1 w-full max-w-full truncate">
+                                    <span class="inline-flex items-center justify-center gap-1 w-full max-w-full truncate place-text">
                                         📍<span class="truncate font-medium text-gray-700">{{ $day['shift']->shiftMaster->name }}</span>
                                     </span>
+                                    <select class="place-select hidden w-full border border-gray-300 rounded-lg p-1 text-sm bg-white">
+                                        @foreach ($shiftMasters as $master)
+                                            <option value="{{ $master->id }}"
+                                                data-attendance="{{ date('H:i', strtotime($master->attendance)) }}"
+                                                data-leaving="{{ date('H:i', strtotime($master->leaving)) }}"
+                                                {{ $day['shift']->master_id == $master->id ? 'selected' : '' }}>
+                                                {{ $master->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
                                 @else
                                     <span class="text-gray-300">--</span>
                                 @endif
                             </td>
                             <td class="p-3 text-sm text-center align-middle cell-edit">
                                 @if($day['shift'])
-                                    <a href="{{ route('shiftcorrection.index', ['shift_id' => $day['shift']->id]) }}" class="btn-edit inline-block text-center">
+                                    <button type="button"
+                                        class="btn-edit edit-shift-btn inline-block text-center"
+                                        data-shift-id="{{ $day['shift']->id }}"
+                                        data-editing="0">
                                         修正
-                                    </a>
+                                    </button>
                                 @elseif($lastMaster)
                                     <form action="{{ route('shift.store') }}" method="POST" class="quick-add-form inline m-0">
                                         @csrf
@@ -307,13 +332,46 @@
         data-is-bulk="{{ old('target_dates') ? 'true' : 'false' }}"
         data-bulk-count="{{ old('target_dates') ? count(old('target_dates')) : 0 }}"
         data-shift-delete-url="{{ route('shift.delete') }}"
+        data-shift-update-time-url="{{ route('shift.updateTime') }}"
         class="hidden">
     </span>
+
+    <div id="floatingSubmitContainer" class="fixed bottom-6 left-[76px] z-40">
+        @if($submissionStatus === '承認済み')
+            <div class="floating-bulk-btn floating-bulk-btn-green floating-bulk-btn-static">
+                ✅ 承認済みです
+            </div>
+        @elseif($submissionStatus === '申請中')
+            <form action="{{ route('shift.withdraw') }}" method="POST"
+                onsubmit="return confirm('{{ $year }}年{{ $month }}月分の提出を取り下げますか？');">
+                @csrf
+                <input type="hidden" name="year" value="{{ $year }}">
+                <input type="hidden" name="month" value="{{ $month }}">
+                <button type="submit" class="floating-bulk-btn floating-bulk-btn-green">
+                    📮 申請中（取り下げる）
+                </button>
+            </form>
+        @else
+            <form action="{{ route('shift.submit') }}" method="POST"
+                onsubmit="return confirm('{{ $year }}年{{ $month }}月分のシフトを提出しますか？');">
+                @csrf
+                <input type="hidden" name="year" value="{{ $year }}">
+                <input type="hidden" name="month" value="{{ $month }}">
+                <button type="submit" class="floating-bulk-btn floating-bulk-btn-green">
+                    @if($submissionStatus === '差し戻し')
+                        🔁 差し戻されました（再提出する）
+                    @else
+                        📤 シフトを提出する
+                    @endif
+                </button>
+            </form>
+        @endif
+    </div>
 
     <div id="floatingBulkBtnContainer" class="fixed bottom-6 right-6 z-40">
         <div class="floating-btn-swap">
             <button type="button" id="selectWeekdaysBtn" class="floating-bulk-btn floating-btn-slot">
-                📅 土日祝を除くすべてにシフトを入れる
+                📅 土日祝を除くすべてにチェックを入れる
             </button>
             <button type="button" id="openBulkModalBtn" class="floating-bulk-btn floating-btn-slot btn-slot-hidden">
                 選択した <span id="selectedCount" class="underline font-extrabold mx-0.5">0</span> 日分をまとめて追加
