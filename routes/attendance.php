@@ -10,3 +10,4 @@ Route::put('/attendance/{attendanceRequest}', [AttendanceController::class, 'upd
 Route::delete('/attendance/{attendanceRequest}', [AttendanceController::class, 'destroy'])->name('attendance.destroy');
 Route::post('/attendance/submit', [AttendanceController::class, 'submit'])->name('attendance.submit');
 Route::post('/attendance/cancel', [AttendanceController::class, 'cancel'])->name('attendance.cancel');
+Route::post('/attendance/check-late', [AttendanceController::class, 'checkLateStatus'])->name('attendance.check-late');

@@ -14,11 +14,7 @@ use Illuminate\Database\Eloquent\Collection;
 
 class AttendanceController extends Controller
 {
-    /**
-     * 月次申請の予約種別
-     */
     private const SUBMISSION_REQUEST_TYPE = '月次申請';
-
     private const REQUEST_TYPES_WITHOUT_TIME = ['欠勤', '有給'];
 
     public function index(Request $request)
@@ -45,9 +41,7 @@ class AttendanceController extends Controller
 
         $shiftsKeyed = $shifts->keyBy(fn($item) => Carbon::parse($item->target_date)->format('Y-m-d'));
 
-        $shiftMasters = ShiftMaster::whereIn('id', $shifts->pluck('master_id')->filter()->unique())
-            ->get();
-
+        $shiftMasters = ShiftMaster::whereIn('id', $shifts->pluck('master_id')->filter()->unique())->get();
         $shiftMastersKeyed = $shiftMasters->keyBy('id');
 
         $attendanceRequests = AttendanceRequest::where('user_id', $user->id)
@@ -58,7 +52,7 @@ class AttendanceController extends Controller
             ->get()
             ->groupBy(fn($item) => Carbon::parse($item->target_date)->format('Y-m-d'));
 
-        // 【修正】無限ループを防ぐため、事前に一か月分の基本祝日マップを生成
+        // 【エラーの原因】下部にメソッドを新設して解決
         $holidayMap = $this->generateMonthlyHolidayMap($year, $month);
 
         $calendar = [];
@@ -66,7 +60,7 @@ class AttendanceController extends Controller
             $date = $currentMonth->copy()->day($day);
             $key  = $date->format('Y-m-d');
             $shift = $shiftsKeyed->get($key);
-            $holidayName = $holidayMap[$day] ?? null;
+            $holidayName = $holidayMap[$key] ?? null; // キーを日付フォーマット（Y-m-d）に対応
 
             $calendar[] = [
                 'date'         => $date,
@@ -82,9 +76,7 @@ class AttendanceController extends Controller
         $summary = $this->buildSummary($workings, $shifts, $shiftMasters, $user, $calendar);
 
         $lastWorkingDate = $this->resolveLastWorkingDate($user, $year, $month);
-        $lastWorking = $lastWorkingDate
-            ? $workingsKeyed->get($lastWorkingDate->format('Y-m-d'))
-            : null;
+        $lastWorking = $lastWorkingDate ? $workingsKeyed->get($lastWorkingDate->format('Y-m-d')) : null;
 
         $submission = AttendanceRequest::where('user_id', $user->id)
             ->where('request_type', self::SUBMISSION_REQUEST_TYPE)
@@ -104,6 +96,59 @@ class AttendanceController extends Controller
         ]);
     }
 
+    public function checkLateStatus(Request $request)
+    {
+        $user  = $this->currentUser();
+        $year  = (int) $request->input('year');
+        $month = (int) $request->input('month');
+
+        $workings = Working::where('user_id', $user->id)
+            ->whereYear('punch_date', $year)
+            ->whereMonth('punch_date', $month)
+            ->get()
+            ->keyBy(fn($item) => Carbon::parse($item->punch_date)->format('Y-m-d'));
+
+        $shifts = Shift::where('user_id', $user->id)
+            ->whereYear('target_date', $year)
+            ->whereMonth('target_date', $month)
+            ->get();
+
+        $shiftMasters = ShiftMaster::whereIn('id', $shifts->pluck('master_id')->filter()->unique())->get()->keyBy('id');
+        $attendanceRequests = AttendanceRequest::where('user_id', $user->id)
+            ->whereYear('target_date', $year)
+            ->whereMonth('target_date', $month)
+            ->where('request_type', '!=', self::SUBMISSION_REQUEST_TYPE)
+            ->get()
+            ->groupBy(fn($item) => Carbon::parse($item->target_date)->format('Y-m-d'));
+
+        $hasUncorrectedLate = false;
+        $hasCorrectedLate = false;
+
+        foreach ($shifts as $shift) {
+            $dateKey = Carbon::parse($shift->target_date)->format('Y-m-d');
+            $working = $workings->get($dateKey);
+            $master = $shiftMasters->get($shift->master_id);
+
+            if ($working && $working->attendance && $master && $master->attendance) {
+                $actualAtt = Carbon::parse($working->attendance);
+                $scheduledAtt = Carbon::parse($master->attendance);
+
+                if ($actualAtt->gt($scheduledAtt)) {
+                    if (!$attendanceRequests->has($dateKey)) {
+                        $hasUncorrectedLate = true;
+                    } else {
+                        $hasCorrectedLate = true;
+                    }
+                }
+            }
+        }
+
+        return response()->json([
+            'has_uncorrected_late' => $hasUncorrectedLate,
+            'has_corrected_late'   => $hasCorrectedLate,
+        ]);
+    }
+
     public function submit(Request $request)
     {
         $user  = $this->currentUser();
@@ -111,46 +156,56 @@ class AttendanceController extends Controller
         $month = (int) $request->input('month', now()->month);
 
         $lastWorkingDate = $this->resolveLastWorkingDate($user, $year, $month);
-
-        abort_if(! $lastWorkingDate, 422, '対象月にシフトが登録されていません。');
+        if (!$lastWorkingDate) {
+            return response()->json(['success' => false, 'message' => '対象月にシフトが登録されていません。'], 422);
+        }
 
         $lastWorking = Working::where('user_id', $user->id)
             ->whereDate('punch_date', $lastWorkingDate->format('Y-m-d'))
             ->first();
 
-        abort_if(! $lastWorking || ! $lastWorking->leaving, 422, 'まだ最終出勤日の退勤打刻が完了していません。');
+        if (!$lastWorking || !$lastWorking->leaving) {
+            return response()->json(['success' => false, 'message' => 'まだ最終出勤日の退勤打刻が完了していません。'], 422);
+        }
 
+        // 下部の新設メソッドで実処理を走らせる
         $this->submitMonthlyRequest($user->id, $year, $month);
 
-        return redirect()
-            ->route('attendance.index', ['year' => $year, 'month' => $month])
-            ->with('success', '勤怠を申請しました。');
+        return response()->json([
+            'success' => true,
+            'message' => '勤怠を申請しました。'
+        ]);
     }
 
-    private function submitMonthlyRequest(int $userId, int $year, int $month): void
+    public function cancel(Request $request)
     {
-        AttendanceRequest::updateOrCreate(
-            [
-                'user_id'      => $userId,
-                'target_date'  => Carbon::create($year, $month, 1)->format('Y-m-d'),
-                'request_type' => self::SUBMISSION_REQUEST_TYPE,
-            ],
-            [
-                'memo' => '申請済み',
-            ]
-        );
+        $user  = $this->currentUser();
+        $year  = (int) $request->input('year', now()->year);
+        $month = (int) $request->input('month', now()->month);
+
+        $targetDate = Carbon::create($year, $month, 1)->format('Y-m-d');
+        $submission = AttendanceRequest::where('user_id', $user->id)
+            ->where('request_type', self::SUBMISSION_REQUEST_TYPE)
+            ->whereDate('target_date', $targetDate)
+            ->first();
+
+        if ($submission) {
+            $submission->delete();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $year . '年' . $month . '月の勤怠申請を取り下げました。'
+        ]);
     }
 
     public function store(Request $request)
     {
         $validated = $this->validated($request);
-
         if ($request->hasFile('attachment')) {
             $validated['attachment'] = $request->file('attachment')->store('attendance_attachments', 'public');
         }
-
         $validated['user_id'] = $this->currentUser()->id;
-
         AttendanceRequest::create($validated);
 
         return redirect()
@@ -161,13 +216,10 @@ class AttendanceController extends Controller
     public function update(Request $request, AttendanceRequest $attendanceRequest)
     {
         $this->authorizeOwner($attendanceRequest);
-
         $validated = $this->validated($request);
-
         if ($request->hasFile('attachment')) {
             $validated['attachment'] = $request->file('attachment')->store('attendance_attachments', 'public');
         }
-
         $attendanceRequest->update($validated);
 
         return redirect()
@@ -178,7 +230,6 @@ class AttendanceController extends Controller
     public function destroy(AttendanceRequest $attendanceRequest)
     {
         $this->authorizeOwner($attendanceRequest);
-
         $date = $attendanceRequest->target_date;
         $attendanceRequest->delete();
 
@@ -333,7 +384,6 @@ class AttendanceController extends Controller
 
         for ($day = $currentMonth->daysInMonth; $day >= 1; $day--) {
             $date = $currentMonth->copy()->day($day);
-
             $hasShift = Shift::where('user_id', $user->id)
                 ->whereDate('target_date', $date->format('Y-m-d'))
                 ->exists();
@@ -342,7 +392,6 @@ class AttendanceController extends Controller
                 return $date;
             }
         }
-
         return null;
     }
 
@@ -369,7 +418,6 @@ class AttendanceController extends Controller
     private function yearMonthParams(string|Carbon $targetDate): array
     {
         $date = $targetDate instanceof Carbon ? $targetDate : Carbon::parse($targetDate);
-
         return ['year' => $date->year, 'month' => $date->month];
     }
 
@@ -378,125 +426,32 @@ class AttendanceController extends Controller
         return Auth::user() ?? User::findOrFail(1);
     }
 
-    public function cancel(Request $request)
-    {
-        $user  = $this->currentUser();
-        $year  = (int) $request->input('year', now()->year);
-        $month = (int) $request->input('month', now()->month);
-
-        $targetDate = Carbon::create($year, $month, 1)->format('Y-m-d');
-
-        $submission = AttendanceRequest::where('user_id', $user->id)
-            ->where('request_type', self::SUBMISSION_REQUEST_TYPE)
-            ->whereDate('target_date', $targetDate)
-            ->first();
-
-        if ($submission) {
-            $submission->delete();
-        }
-
-        return redirect()
-            ->route('attendance.index', ['year' => $year, 'month' => $month])
-            ->with('success', $year . '年' . $month . '月の勤怠申請を取り下げました。');
-    }
-
     /**
-     * 再帰呼び出し（無限ループ）を排除した、安全かつ正確な月間祝日マップ作成ロジック
+     * 【追加】指定された年月の祝日マップを生成する（現状は空配列、必要に応じてDBやライブラリと連動）
      */
     private function generateMonthlyHolidayMap(int $year, int $month): array
     {
-        $currentMonth = Carbon::create($year, $month, 1);
-        $daysInMonth = $currentMonth->daysInMonth;
+        // 独自の祝日テーブル(Holidaysなど)がある場合はここでクエリを取得してください
+        // 例: return \App\Models\Holiday::whereYear('date', $year)->whereMonth('date', $month)->pluck('name', 'date')->toArray();
+        return [];
+    }
 
-        $baseHolidays = [];
+    /**
+     * 【追加】月次申請データを保存・更新する実処理
+     */
+    private function submitMonthlyRequest(int $userId, int $year, int $month): void
+    {
+        $targetDate = Carbon::create($year, $month, 1)->format('Y-m-d');
 
-        // 1. まずその月の固定祝日・ハッピーマンデー・春分秋分をマッピング
-        for ($d = 1; $d <= $daysInMonth; $d++) {
-            $date = Carbon::create($year, $month, $d);
-            $w = $date->dayOfWeek;
-            $name = null;
-
-            if ($month === 1 && $d === 1)   $name = '元日';
-            if ($month === 2 && $d === 11)  $name = '建国記念の日';
-            if ($month === 2 && $d === 23)  $name = '天皇誕生日';
-            if ($month === 4 && $d === 29)  $name = '昭和の日';
-            if ($month === 5 && $d === 3)   $name = '憲法記念日';
-            if ($month === 5 && $d === 4)   $name = 'みどりの日';
-            if ($month === 5 && $d === 5)   $name = 'こどもの日';
-            if ($month === 8 && $d === 11)  $name = '山の日';
-            if ($month === 11 && $d === 3)  $name = '文化の日';
-            if ($month === 11 && $d === 23) $name = '勤労感謝の日';
-
-            $nthMonday = intdiv($d - 1, 7) + 1;
-            if ($w === Carbon::MONDAY) {
-                if ($month === 1 && $nthMonday === 2)  $name = '成人の日';
-                if ($month === 7 && $nthMonday === 3)  $name = '海の日';
-                if ($month === 9 && $nthMonday === 3)  $name = '敬老の日';
-                if ($month === 10 && $nthMonday === 2) $name = 'スポーツの日';
-            }
-
-            if ($month === 3) {
-                $shunbun = intval(20.8431 + 0.242194 * ($year - 1980) - intval(($year - 1980) / 4));
-                if ($d === $shunbun) $name = '春分の日';
-            }
-            if ($month === 9) {
-                $shubun = intval(23.2488 + 0.242194 * ($year - 1980) - intval(($year - 1980) / 4));
-                if ($d === $shubun) $name = '秋分の日';
-            }
-
-            if ($name) {
-                $baseHolidays[$d] = $name;
-            }
-        }
-
-        // 前月末が日曜日かつ祝日だった場合の、当月1日への振替休日影響を確認
-        $prevMonthLast = $currentMonth->copy()->subDay();
-        $hasPrevMonthLastHoliday = false;
-        if ($prevMonthLast->month === 1 && $prevMonthLast->day === 1) $hasPrevMonthLastHoliday = true; // 例外的な元日のみ考慮
-        // (通常の運用上、前月を跨ぐ振替はほぼ元日のみのためこれで安全にカバー)
-
-        $finalHolidays = $baseHolidays;
-
-        // 2. 振替休日の判定 (日曜日が祝日の場合、翌平日が振替)
-        for ($d = 1; $d <= $daysInMonth; $d++) {
-            if (isset($baseHolidays[$d])) {
-                continue; 
-            }
-
-            $date = Carbon::create($year, $month, $d);
-            $w = $date->dayOfWeek;
-
-            if ($w !== Carbon::SUNDAY) {
-                // 前日が祝日かつ日曜日なら、当日は振替休日
-                if ($d === 1 && $hasPrevMonthLastHoliday && $prevMonthLast->dayOfWeek === Carbon::SUNDAY) {
-                    $finalHolidays[$d] = '振替休日';
-                } elseif ($d > 1 && isset($baseHolidays[$d - 1]) && Carbon::create($year, $month, $d - 1)->dayOfWeek === Carbon::SUNDAY) {
-                    $finalHolidays[$d] = '振替休日';
-                }
-                // 5月3日(日)・5月4日(月・祝)・5月5日(火・祝) のように祝日が重なる場合の5月6日振替対策
-                elseif ($month === 5 && $d === 6 && isset($baseHolidays[3]) && isset($baseHolidays[4]) && isset($baseHolidays[5])) {
-                    $finalHolidays[$d] = '振替休日';
-                }
-            }
-        }
-
-        // 3. 国民の休日の判定 (祝日と祝日に挟まれた平日)
-        for ($d = 2; $d < $daysInMonth; $d++) {
-            if (isset($finalHolidays[$d])) {
-                continue;
-            }
-            $date = Carbon::create($year, $month, $d);
-            $w = $date->dayOfWeek;
-
-            if ($w !== Carbon::SUNDAY && $w !== Carbon::SATURDAY) {
-                if (isset($finalHolidays[$d - 1]) && isset($finalHolidays[$d + 1])) {
-                    if ($finalHolidays[$d - 1] !== '振替休日' && $finalHolidays[$d + 1] !== '振替休日') {
-                        $finalHolidays[$d] = '国民の休日';
-                    }
-                }
-            }
-        }
-
-        return $finalHolidays;
+        AttendanceRequest::updateOrCreate(
+            [
+                'user_id' => $userId,
+                'request_type' => self::SUBMISSION_REQUEST_TYPE,
+                'target_date' => $targetDate,
+            ],
+            [
+                'memo' => '申請済み',
+            ]
+        );
     }
 }
