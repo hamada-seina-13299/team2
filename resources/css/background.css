@@ -1,0 +1,327 @@
+@charset "UTF-8";
+
+/* ==========================================================================
+   全体背景とステージ設定
+   ========================================================================== */
+body {
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(135deg, #1a2a4a 0%, #3b5998 50%, #eef2f7 100%);
+    background-color: #1a2a4a;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    color: #333333;
+    position: relative;
+    overflow: hidden; /* 画面外に飛び出した飛行機や雲を隠す */
+}
+
+/* 航空機と雲の共通スタイル（装飾用レイヤー） */
+.stage-objects {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2; /* 飛行機などを星空より手前に出すため数値を引き上げ */
+}
+
+/* ==========================================================================
+   背景を飛ぶリアルな航空機（影・位置・アニメーション）
+   ========================================================================== */
+.airplane-container {
+    position: absolute;
+    width: 60px;
+    height: auto;
+    opacity: 0;
+    will-change: transform, left, right, top;
+}
+
+.airplane {
+    width: 100%;
+    height: auto;
+    color: #ffffff;
+    /* 航空機の立体感を出す、くっきりとした濃いめの影 */
+    filter: drop-shadow(4px 14px 5px rgba(5, 15, 35, 0.65));    
+    will-change: filter; 
+}
+
+/* --- 航空機の飛行アニメーションパターン --- */
+.fly-left-to-right {
+    top: 20%;
+    transform: rotate(90deg);
+    animation: cruiseLeftToRight 12s linear infinite;
+    animation-delay: 0s;
+}
+@keyframes cruiseLeftToRight {
+    0% { left: -80px; opacity: 0; }
+    5% { opacity: 1; }
+    95% { opacity: 1; }
+    100% { left: 100%; opacity: 0; }
+}
+
+.fly-right-to-left {
+    top: 45%;
+    transform: rotate(-95deg);
+    animation: cruiseRightToLeft 14s linear infinite;
+    animation-delay: 3s;
+}
+@keyframes cruiseRightToLeft {
+    0% { right: -80px; top: 40%; opacity: 0; }
+    5% { opacity: 1; }
+    95% { opacity: 1; }
+    100% { right: 100%; top: 50%; opacity: 0; }
+}
+
+.fly-bottom-left-to-top-right {
+    bottom: -80px;
+    left: -80px;
+    transform: rotate(45deg);
+    animation: cruiseDiagonal 10s linear infinite;
+    animation-delay: 6s;
+}
+@keyframes cruiseDiagonal {
+    0% { bottom: -80px; left: -80px; transform: rotate(45deg) scale(0.8); opacity: 0; }
+    5% { opacity: 1; }
+    95% { opacity: 1; }
+    100% { bottom: 100%; left: 90%; transform: rotate(45deg) scale(1.1); opacity: 0; }
+}
+
+@keyframes strobeBlink {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+}
+
+/* ==========================================================================
+   動的な雲のスタイル
+   ========================================================================== */
+.cloud {
+    position: absolute;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8) 0%, rgba(240,244,248,0.6) 70%, rgba(200,210,220,0.3) 100%);
+    border-radius: 50% 60% 70% 40% / 60% 50% 40% 70%;
+    box-shadow: 
+        inset -10px -10px 20px rgba(0, 40, 80, 0.05),
+        inset 10px 10px 20px rgba(255, 255, 255, 0.8),
+        0 10px 30px rgba(0, 0, 0, 0.05);
+    will-change: transform;
+}
+
+.cloud::before, .cloud::after {
+    content: '';
+    position: absolute;
+    background: inherit;
+    border-radius: 50%;
+    box-shadow: inherit;
+}
+
+/* 奥のレイヤー */
+.cloud-back {
+    width: 180px;
+    height: 60px;
+    top: 15%;
+    filter: blur(10px);
+    opacity: 0.4;
+    animation: cloudMoveBack 50s linear infinite;
+}
+.cloud-back::before { width: 90px; height: 70px; top: -30px; left: 25px; }
+.cloud-back::after { width: 80px; height: 60px; top: -20px; right: 25px; }
+@keyframes cloudMoveBack {
+    0% { transform: translate3d(-200px, 0, 0); }
+    100% { transform: translate3d(calc(100vw + 200px), 0, 0); }
+}
+
+/* 中間のレイヤー */
+.cloud-middle {
+    width: 240px;
+    height: 80px;
+    top: 35%;
+    filter: blur(5px);
+    opacity: 0.7;
+    animation: cloudMoveMiddle 35s linear infinite;
+    animation-delay: -10s;
+}
+.cloud-middle::before { width: 120px; height: 95px; top: -40px; left: 35px; }
+.cloud-middle::after { width: 100px; height: 80px; top: -25px; right: 35px; }
+@keyframes cloudMoveMiddle {
+    0% { transform: translate3d(-300px, 0, 0); }
+    100% { transform: translate3d(calc(100vw + 300px), 0, 0); }
+}
+
+/* 手前のレイヤー */
+.cloud-front {
+    width: 300px;
+    height: 100px;
+    top: 60%;
+    filter: blur(2px);
+    opacity: 0.9;
+    animation: cloudMoveFront 20s linear infinite;
+    animation-delay: -5s;
+}
+.cloud-front::before { width: 150px; height: 120px; top: -50px; left: 45px; }
+.cloud-front::after { width: 125px; height: 100px; top: -30px; right: 45px; }
+@keyframes cloudMoveFront {
+    0% { transform: translate3d(-400px, 0, 0); }
+    100% { transform: translate3d(calc(100vw + 400px), 0, 0); }
+}
+
+/* ==========================================================================
+   天候パターン（bodyのクラス切替による動的変化）
+   ========================================================================== */
+
+/* ------------晴れ・青空------------ */
+body.weather-sunny {
+    background: linear-gradient(180deg, #0f2b5c 0%, #2962ff 35%, #90caf9 70%, #e3f2fd 100%);
+}
+
+/* ------------曇り・雨------------ */
+body.weather-rainy {
+    background: linear-gradient(180deg, #1f2937 0%, #374151 50%, #4b5563 100%);
+    overflow: hidden;
+}
+body.weather-rainy .cloud {
+    background: radial-gradient(circle at 30% 30%, rgba(140,150,160,0.6) 0%, rgba(80,90,100,0.4) 70%, rgba(40,50,60,0.2) 100%);
+    box-shadow: inset -10px -10px 20px rgba(0, 0, 0, 0.3), inset 10px 10px 20px rgba(255, 255, 255, 0.1);
+}
+body.weather-rainy .airplane {
+    filter: drop-shadow(5px 15px 15px rgba(0, 0, 0, 0.25));
+}
+
+body.weather-rainy .rain {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: 1; pointer-events: none;
+}
+body.weather-rainy .rain > div {
+    animation: rain 500ms linear infinite;
+    background-color: rgba(255, 255, 255, 0.25);
+    position: absolute;
+    left: 0; top: -25vh; width: 1px; height: 25vh;
+    transform-origin: center center;
+}
+body.weather-rainy .rain > div:nth-child(1)  { animation-delay: 100ms;  animation-duration: 450ms; left: 12vw; }
+body.weather-rainy .rain > div:nth-child(2)  { animation-delay: 200ms;  animation-duration: 520ms; left: 85vw; }
+body.weather-rainy .rain > div:nth-child(3)  { animation-delay: 300ms;  animation-duration: 390ms; left: 43vw; }
+body.weather-rainy .rain > div:nth-child(4)  { animation-delay: 400ms;  animation-duration: 610ms; left: 27vw; }
+body.weather-rainy .rain > div:nth-child(5)  { animation-delay: 500ms;  animation-duration: 480ms; left: 73vw; }
+body.weather-rainy .rain > div:nth-child(6)  { animation-delay: 600ms;  animation-duration: 550ms; left: 5vw; }
+body.weather-rainy .rain > div:nth-child(7)  { animation-delay: 700ms;  animation-duration: 410ms; left: 91vw; }
+body.weather-rainy .rain > div:nth-child(8)  { animation-delay: 800ms;  animation-duration: 630ms; left: 62vw; }
+body.weather-rainy .rain > div:nth-child(9)  { animation-delay: 900ms;  animation-duration: 460ms; left: 18vw; }
+body.weather-rainy .rain > div:nth-child(10) { animation-delay: 1000ms; animation-duration: 500ms; left: 35vw; }
+body.weather-rainy .rain > div:nth-child(11) { animation-delay: 1100ms; animation-duration: 580ms; left: 79vw; }
+body.weather-rainy .rain > div:nth-child(12) { animation-delay: 1200ms; animation-duration: 420ms; left: 50vw; }
+body.weather-rainy .rain > div:nth-child(13) { animation-delay: 1300ms; animation-duration: 600ms; left: 98vw; }
+body.weather-rainy .rain > div:nth-child(14) { animation-delay: 1400ms; animation-duration: 470ms; left: 22vw; }
+body.weather-rainy .rain > div:nth-child(15) { animation-delay: 1500ms; animation-duration: 530ms; left: 66vw; }
+body.weather-rainy .rain > div:nth-child(16) { animation-delay: 1600ms; animation-duration: 400ms; left: 8vw; }
+body.weather-rainy .rain > div:nth-child(17) { animation-delay: 1700ms; animation-duration: 620ms; left: 89vw; }
+body.weather-rainy .rain > div:nth-child(18) { animation-delay: 1800ms; animation-duration: 440ms; left: 54vw; }
+body.weather-rainy .rain > div:nth-child(19) { animation-delay: 1900ms; animation-duration: 510ms; left: 31vw; }
+body.weather-rainy .rain > div:nth-child(20) { animation-delay: 2000ms; animation-duration: 570ms; left: 70vw; }
+body.weather-rainy .rain > div:nth-child(21) { animation-delay: 2100ms; animation-duration: 430ms; left: 15vw; }
+body.weather-rainy .rain > div:nth-child(22) { animation-delay: 2200ms; animation-duration: 590ms; left: 94vw; }
+body.weather-rainy .rain > div:nth-child(23) { animation-delay: 2300ms; animation-duration: 490ms; left: 40vw; }
+body.weather-rainy .rain > div:nth-child(24) { animation-delay: 2400ms; animation-duration: 560ms; left: 82vw; }
+body.weather-rainy .rain > div:nth-child(25) { animation-delay: 2500ms; animation-duration: 410ms; left: 3vw; }
+
+@keyframes rain {
+    from { transform: rotate(-5deg) translateY(-25vh); }
+    to { transform: rotate(-5deg) translateY(125vh); }
+}
+
+
+/* ------------夜間飛行（星空）------------ */
+body.weather-night {
+    background: linear-gradient(180deg, rgb(0, 0, 0) 50%, rgb(25, 19, 39) 80%, rgb(43, 32, 72) 100%);
+}
+
+/* 夜空のときは「雲」と「雨」の両方を完全に非表示にする */
+body.weather-night .cloud,
+body.weather-night .rain {
+    display: none !important;
+}
+
+body.weather-night .airplane {
+    filter: drop-shadow(3px 10px 4px rgba(0, 0, 0, 0.85));
+}
+
+/* 星空・共通コンテナ */
+body.weather-night .starry_sky {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+    z-index: 1; 
+    pointer-events: none;
+}
+
+/* 中央のフォームコンテナを最前面にする処理 */
+body.weather-night .container {
+    position: relative;
+    z-index: 3;
+}
+
+/* 固定の星 */
+body.weather-night .star {
+    position: absolute;
+    width: 2.5px;
+    height: 2.5px;
+    background: white;
+    border-radius: 50%;
+    animation: twinkle 3s infinite alternate;
+    will-change: opacity, transform;
+}
+
+/* 流れ星 */
+body.weather-night .shooting-star {
+    position: absolute;
+    width: 160px; 
+    height: 1px;
+    background: linear-gradient(90deg, white, transparent);
+    offset-rotate: auto;
+    opacity: 0;
+    /* 星が大きくなった分、光の輪（ぼかし）も少し強めに */
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.9)); 
+    animation: shoot 7s linear forwards; 
+}
+
+/* --- キーフレームアニメーション --- */
+
+/* 星の瞬き */
+@keyframes twinkle {
+    from { 
+        opacity: 0.2; 
+        transform: scale(1); 
+        box-shadow: 0 0 2px rgba(255, 255, 255, 0.2);
+    }
+    to { 
+        opacity: 0.9; 
+        transform: scale(1.15); /* ほんの少しだけふっくら光る */
+        box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+    }
+}
+
+/* 流れ星のアニメーション（速度は心地よいスローを維持） */
+@keyframes shoot {
+    0% { 
+        offset-distance: 0%; 
+        opacity: 0; 
+    }
+    2% { 
+        opacity: 1; 
+    }
+    25% { 
+        offset-distance: 100%; 
+        opacity: 0; 
+    }
+    100% { 
+        offset-distance: 100%; 
+        opacity: 0; 
+    }
+}
