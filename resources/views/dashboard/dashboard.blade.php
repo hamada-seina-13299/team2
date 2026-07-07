@@ -18,6 +18,11 @@
     {{ session('success') }}
 </div>
 @endif
+@if(session('warning'))
+<div style="background-color: #fef08a; color: #854d0e; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; border: 1px solid #fef08a;">
+    ⚠️ {{ session('warning') }}
+</div>
+@endif
 @if(session('error'))
 <div style="background-color: #fee2e2; color: #991b1b; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: bold;">
     {{ session('error') }}
@@ -119,7 +124,7 @@
             <div class="bottom-actions">
                 <button class="btn-outline">📝 勤怠申請</button>
 
-                {{-- 💡 要望2: 上部ボタンのデータ属性を「最新の打刻履歴データ」に自動追従させます --}}
+                {{-- 上部ボタンのデータ属性を「最新の打刻履歴データ」に自動追従させます --}}
                 @php
                 $latestRecord = $history->first(); // 履歴の1件目（最新）
                 @endphp
@@ -265,7 +270,6 @@ $groupedHistory = $history->groupBy('punch_date');
                     </tr>
                 </thead>
                 <tbody id="modal-correction-history-tbody">
-                    {{-- 登録された履歴をループ表示（初期状態はJSで出し分けするため全て描画） --}}
                     @forelse($correctionHistory as $correction)
                     <tr class="correction-history-row" data-date="{{ $correction->target_date }}">
                         <td>
@@ -275,37 +279,58 @@ $groupedHistory = $history->groupBy('punch_date');
                         </td>
                         <td>{{ \Carbon\Carbon::parse($correction->created_at)->format('Y/m/d H:i') }}</td>
                         <td>
-                            {{-- ステータスごとに色を変えるとおしゃれです --}}
-                            @if($correction->status === '承認')
-                            <span style="color: #10b981; font-weight: bold;">承認</span>
-                            @elseif($correction->status === '却下')
-                            <span style="color: #ef4444; font-weight: bold;">却下</span>
-                            @else
-                            <span style="color: #f59e0b; font-weight: bold;">申請中</span>
+                            {{--DBから取得したステータスをそのまま表示 --}}
+                            <span>{{ $correction->status }}</span>
+                            {{--DBに記録された「更新者名」を表示 --}}
+                            @if(!empty($correction->updater_name))
+                            <br><span style="font-size: 10px; color: #6b7280;">({{ $correction->updater_name }})</span>
                             @endif
                         </td>
                         <td>
-                            {{-- 勤務地が変更前と後で違えば「勤務地変更」、時間が変わっていれば「時間修正」など --}}
                             @if($correction->before_working_place !== $correction->after_working_place)
                             勤務地変更
                             @else
                             時間修正
                             @endif
                         </td>
-                        <td style="color: #9ca3af; text-align: left; font-family: monospace;">
-                            @if($correction->before_attendance) 出:{{ \Carbon\Carbon::parse($correction->before_attendance)->format('H:i') }}<br>@endif
-                            @if($correction->before_leaving) 退:{{ \Carbon\Carbon::parse($correction->before_leaving)->format('H:i') }}<br>@endif
-                            @if($correction->before_break_time) 憩始:{{ \Carbon\Carbon::parse($correction->before_break_time)->format('H:i') }}<br>@endif
-                            @if($correction->before_break_end_time) 憩終:{{ \Carbon\Carbon::parse($correction->before_break_end_time)->format('H:i') }}<br>@endif
-                            <span style="color: #6b7280;">📍場所: {{ $correction->before_working_place }}</span>
+
+                        <td style="text-align: left; font-family: monospace; vertical-align: top;">
+                            @if($correction->before_attendance !== $correction->after_attendance)
+                                <div>出: {{ $correction->before_attendance ? \Carbon\Carbon::parse($correction->before_attendance)->format('H:i') : '未打刻' }}</div>
+                            @endif
+                            @if($correction->before_leaving !== $correction->after_leaving)
+                                <div>退: {{ $correction->before_leaving ? \Carbon\Carbon::parse($correction->before_leaving)->format('H:i') : '未打刻' }}</div>
+                            @endif
+                            @if($correction->before_break_time !== $correction->after_break_time)
+                                <div>憩始: {{ $correction->before_break_time ? \Carbon\Carbon::parse($correction->before_break_time)->format('H:i') : '未打刻' }}</div>
+                            @endif
+                            @if($correction->before_break_end_time !== $correction->after_break_end_time)
+                                <div>憩終: {{ $correction->before_break_end_time ? \Carbon\Carbon::parse($correction->before_break_end_time)->format('H:i') : '未打刻' }}</div>
+                            @endif
+                            @if($correction->before_working_place !== $correction->after_working_place)
+                                <div>場所: {{ $correction->before_working_place }}</div>
+                            @endif
                         </td>
-                        <td style="color: #111827; text-align: left; font-family: monospace; font-weight: bold;">
-                            @if($correction->after_attendance) 出:{{ \Carbon\Carbon::parse($correction->after_attendance)->format('H:i') }}<br>@endif
-                            @if($correction->after_leaving) 退:{{ \Carbon\Carbon::parse($correction->after_leaving)->format('H:i') }}<br>@endif
-                            @if($correction->after_break_time) 憩始:{{ \Carbon\Carbon::parse($correction->after_break_time)->format('H:i') }}<br>@endif
-                            @if($correction->after_break_end_time) 憩終:{{ \Carbon\Carbon::parse($correction->after_break_end_time)->format('H:i') }}<br>@endif
-                            <span style="color: #1aaba8;">📍場所: {{ $correction->after_working_place }}</span>
+
+                        {{-- 変更があった項目のみを表示（太字） --}}
+                        <td style="text-align: left; font-family: monospace; font-weight: bold; vertical-align: top;">
+                            @if($correction->before_attendance !== $correction->after_attendance)
+                                <div>出: {{ $correction->after_attendance ? \Carbon\Carbon::parse($correction->after_attendance)->format('H:i') : '削除' }}</div>
+                            @endif
+                            @if($correction->before_leaving !== $correction->after_leaving)
+                                <div>退: {{ $correction->after_leaving ? \Carbon\Carbon::parse($correction->after_leaving)->format('H:i') : '削除' }}</div>
+                            @endif
+                            @if($correction->before_break_time !== $correction->after_break_time)
+                                <div>憩始: {{ $correction->after_break_time ? \Carbon\Carbon::parse($correction->after_break_time)->format('H:i') : '削除' }}</div>
+                            @endif
+                            @if($correction->before_break_end_time !== $correction->after_break_end_time)
+                                <div>憩終: {{ $correction->after_break_end_time ? \Carbon\Carbon::parse($correction->after_break_end_time)->format('H:i') : '削除' }}</div>
+                            @endif
+                            @if($correction->before_working_place !== $correction->after_working_place)
+                                <div>場所: {{ $correction->after_working_place }}</div>
+                            @endif
                         </td>
+
                         <td style="text-align: left; max-width: 150px; white-space: pre-line;">{{ $correction->memo }}</td>
                         <td>{{ \Carbon\Carbon::parse($correction->updated_at)->format('Y/m/d H:i') }}</td>
                     </tr>
@@ -325,22 +350,5 @@ $groupedHistory = $history->groupBy('punch_date');
 
     </div>
 </div>
-<form id="hidden-cancel-form" method="POST" style="display: none;">
-    @csrf
-</form>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // 取消ボタンがクリックされた時の処理
-    document.body.addEventListener('click', function(e) {
-        if (e.target && e.target.classList.contains('btn-cancel-correction')) {
-            const id = e.target.getAttribute('data-id');
-            const form = document.getElementById('hidden-cancel-form');
-            // ルートURLを動的に生成してセット
-            form.action = `/dashboard/correction/${id}/cancel`;
-            form.submit();
-        }
-    });
-});
-</script>
 @endsection

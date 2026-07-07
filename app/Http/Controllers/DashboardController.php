@@ -135,18 +135,23 @@ class DashboardController extends Controller
             ->get();
 
         $allHistoryData = $allHistoryRaw->map(function ($record) use ($todayShift) {
-            $record->break_out = '';
-            if (!empty($record->break_time) && $todayShift && !empty($todayShift->break_time)) {
+
+            // 1. まずはDBに直接保存されている『確定済みの休憩終了時刻』を最優先で取得
+            $breakEndTime = !empty($record->break_end_time) ? Carbon::parse($record->break_end_time)->format('H:i') : '';
+
+            // 2. もしDBが空で、休憩開始時刻とシフトデータがある場合のみ、動的に計算（バックアップロジック）
+            if (empty($breakEndTime) && !empty($record->break_time) && $todayShift && !empty($todayShift->break_time)) {
                 $bStart = Carbon::parse($record->break_time);
                 $bLength = Carbon::parse($todayShift->break_time);
-                $record->break_out = $bStart->copy()->addHours($bLength->hour)->addMinutes($bLength->minute)->format('H:i');
+                $breakEndTime = $bStart->copy()->addHours($bLength->hour)->addMinutes($bLength->minute)->format('H:i');
             }
+
             return [
                 'punch_date' => $record->punch_date,
                 'attendance' => $record->attendance ? Carbon::parse($record->attendance)->format('H:i') : '',
                 'leaving' => $record->leaving ? Carbon::parse($record->leaving)->format('H:i') : '',
                 'break_time' => $record->break_time ? Carbon::parse($record->break_time)->format('H:i') : '',
-                'break_out' => $record->break_out,
+                'break_end_time' => $breakEndTime,
                 'working_place' => $record->working_place ?? '',
             ];
         })->keyBy('punch_date'); // 日付をキーにする
@@ -275,20 +280,22 @@ class DashboardController extends Controller
             'updated_at' => Carbon::now(),
         ];
 
-        //  休憩開始時刻(break_time)が入っていない（Null）場合の判定
+        // 休憩開始時刻(break_time)が入っていない（Null）場合の判定
+        $hasNoBreakNotice = false; // 休憩なしでお知らせを出すかどうかのフラグ
+
         if (is_null($working->break_time)) {
             if ($canAutoBreak) {
                 $shift = DB::table('shifts')
                     ->join('shift_masters', 'shifts.master_id', '=', 'shift_masters.id')
                     ->where('shifts.user_id', $userId)
                     ->where('shifts.target_date', $working->punch_date)
-                    ->select('shift_masters.break_start_time', 'shift_masters.break_time as break_length') // 💡 break_time（休憩長さ）も取得
+                    ->select('shift_masters.break_start_time', 'shift_masters.break_time as break_length')
                     ->first();
 
                 if ($shift && !empty($shift->break_start_time)) {
                     $updateData['break_time'] = $shift->break_start_time;
 
-                    // 💡 休憩終了時刻を物理計算して保存
+                    // 休憩終了時刻を物理計算して保存
                     if (!empty($shift->break_length)) {
                         $bStart = Carbon::parse($shift->break_start_time);
                         $bLength = Carbon::parse($shift->break_length);
@@ -296,12 +303,18 @@ class DashboardController extends Controller
                     }
                 }
             } else {
-                return redirect()->back()->with('error', '休憩が記録されていません。...');
+                //エラーで弾くのではなく、退勤を許可しつつ、お知らせを出すフラグを立てる
+                $hasNoBreakNotice = true;
             }
         }
 
-        // workingsテーブルを更新して退勤完了（該当レコードのIDで安全に更新）
+        // workingsテーブルを更新して退勤完了
         DB::table('workings')->where('id', $working->id)->update($updateData);
+
+        // 休憩なしフラグが立っている場合は、うす黄色アラート用のwarningメッセージを渡してリダイレクト
+        if ($hasNoBreakNotice) {
+            return redirect()->route('dashboard')->with('warning', '休憩なしの退勤となりました。');
+        }
 
         return redirect()->route('dashboard')->with('success', '退勤しました。');
     }
