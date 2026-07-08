@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
@@ -352,91 +351,11 @@ class DashboardController extends Controller
     }
     
     /**
-     * 勤怠申請の保存
+     * ⚠️ 未使用: 勤怠申請の実際の保存処理は AttendanceController@store（route: attendance.store）が行っています。
+     * このメソッドはルーティングされていないため実行されません。
      */
     public function store(Request $request)
     {
-        $userId = Auth::id();
-
-        // 申請種別ごとに「時刻入力が必要か」「打刻(出勤/退勤)のどちらと同期するか」を定義
-        // ダッシュボード側(dashboard.js の DASH_TYPE_CONFIG)と対応関係を揃えている
-        $timeRequiredTypes = ['遅刻', '早退', '残業', '有事遅刻', '有事早退'];
-        $syncFieldMap = [
-            '遅刻'     => 'attendance',
-            '有事遅刻' => 'attendance',
-            '早退'     => 'leaving',
-            '残業'     => 'leaving',
-            '有事早退' => 'leaving',
-        ];
-
-        $validated = $request->validate([
-            'target_date'     => ['required', 'date'],
-            'request_type'    => ['required', 'in:遅刻,早退,欠勤,有給,半休,残業,有事遅刻,有事早退'],
-            'halfday_type'    => ['required_if:request_type,半休', 'nullable', 'in:前半休,後半休'],
-            'request_time'    => ['nullable', 'date_format:H:i'],
-            'memo'            => ['required', 'string', 'max:255'],
-            'attachment'      => ['nullable', 'file', 'max:5120', 'mimes:jpg,jpeg,png,gif,pdf'],
-            'sync_with_punch' => ['nullable', 'in:0,1'],
-        ], [
-            'request_time.required_if' => '申請時刻を入力してください。',
-        ]);
-
-        // 時刻入力が必要な種別なのに、時刻が空の場合は個別にエラーとする
-        if (in_array($validated['request_type'], $timeRequiredTypes, true) && empty($validated['request_time'])) {
-            return redirect()->back()->withErrors(['request_time' => '申請時刻を入力してください。'])->withInput();
-        }
-
-        // 半休は「半休(前半休)」のように種別名へ合成して保存する
-        $requestType = $validated['request_type'];
-        if ($requestType === '半休') {
-            $requestType .= '(' . $validated['halfday_type'] . ')';
-        }
-
-        // 申請時刻の確定
-        $requestTime = $validated['request_time'] ?? null;
-
-        // 「打刻に合わせる」がONの場合、クライアントから送られた時刻は信頼せず、
-        // サーバー側で workings テーブルの実打刻を再取得して上書きする（改ざん防止）
-        $syncField = $syncFieldMap[$validated['request_type']] ?? null;
-        if ($syncField && $request->input('sync_with_punch') === '1') {
-            $working = DB::table('workings')
-                ->where('user_id', $userId)
-                ->where('punch_date', $validated['target_date'])
-                ->first();
-
-            $requestTime = $working->{$syncField} ?? null;
-
-            if (!$requestTime) {
-                return redirect()->back()
-                    ->withErrors(['request_time' => '対象日の打刻データが見つからないため、「打刻に合わせる」は利用できません。'])
-                    ->withInput();
-            }
-        }
-
-        // 時刻入力が不要な種別（欠勤・有給・半休）は時刻を持たせない
-        if (!in_array($validated['request_type'], $timeRequiredTypes, true)) {
-            $requestTime = null;
-        }
-
-        // 添付ファイルの保存（public ディスクの attendance_requests フォルダへ）
-        $attachmentPath = null;
-        if ($request->hasFile('attachment')) {
-            $attachmentPath = $request->file('attachment')->store('attendance_requests', 'public');
-        }
-
-        DB::table('attendance_requests')->insert([
-            'user_id'      => $userId,
-            'target_date'  => $validated['target_date'],
-            'request_type' => $requestType,
-            'memo'         => $validated['memo'],
-            'request_time' => $requestTime,
-            'attachment'   => $attachmentPath,
-            'status'       => '申請中',
-            'updater_name' => Auth::user()->name ?? '',
-            'created_at'   => Carbon::now(),
-            'updated_at'   => Carbon::now(),
-        ]);
-
         return redirect()->back()->with('success', '勤怠申請を送信しました。');
     }
 }
