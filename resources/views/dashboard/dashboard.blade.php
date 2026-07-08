@@ -355,6 +355,9 @@ $groupedHistory = $history->groupBy('punch_date');
 </div>
 
 {{-- 勤怠申請モーダル --}}
+@if ($errors->any() && old('_form') === 'attendance_request')
+<div id="dash-request-reopen-flag" data-date="{{ old('target_date') }}" style="display:none;"></div>
+@endif
 <div id="attendance-request-modal-overlay" class="dashboard-modal-overlay">
     <div class="dashboard-modal-box" id="dashboard-modal-box" style="max-width: 480px;">
         <div class="dashboard-date-nav" style="padding: 0 5px 10px 5px; border-bottom: 1px solid #ddd; margin-bottom: 20px;">
@@ -366,25 +369,33 @@ $groupedHistory = $history->groupBy('punch_date');
         <form id="dashboard-attendance-form" action="{{ route('attendance.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="_method" id="dash_method_field" value="POST">
+            {{-- このモーダルからの送信であることを判別するための目印（他フォームのエラーと混同しないため） --}}
+            <input type="hidden" name="_form" value="attendance_request">
             
             <div style="margin-bottom: 15px; text-align: left;">
                 <label for="dash_target_date" style="display:block; font-weight:bold; margin-bottom: 5px; font-size:14px;">対象日 <span style="color:red;">*</span></label>
-                <input type="date" id="dash_target_date" name="target_date" required class="dashboard-input-text" style="width:100%; height:38px;">
+                <input type="date" id="dash_target_date" name="target_date" value="{{ old('target_date') }}" required class="dashboard-input-text" style="width:100%; height:38px;">
+                @error('target_date')
+                <span style="color:#dc2626; font-size:12px; display:block; margin-top:4px;">{{ $message }}</span>
+                @enderror
             </div>
 
             <div style="margin-bottom: 15px; text-align: left;">
                 <label for="dash_request_type" style="display:block; font-weight:bold; margin-bottom: 5px; font-size:14px;">申請種別 <span style="color:red;">*</span></label>
                 <select id="dash_request_type" name="request_type" required class="dashboard-input-text" style="width:100%; height:38px; background-color:#fff;">
                     <option value="">選択してください</option>
-                    <option value="遅刻">遅刻</option>
-                    <option value="早退">早退</option>
-                    <option value="欠勤">欠勤</option>
-                    <option value="有給">有給</option>
-                    <option value="半休">半休</option>
-                    <option value="残業">残業</option>
-                    <option value="有事遅刻">有事遅刻</option>
-                    <option value="有事早退">有事早退</option>
+                    <option value="遅刻" @selected(old('request_type') === '遅刻')>遅刻</option>
+                    <option value="早退" @selected(old('request_type') === '早退')>早退</option>
+                    <option value="欠勤" @selected(old('request_type') === '欠勤')>欠勤</option>
+                    <option value="有給" @selected(old('request_type') === '有給')>有給</option>
+                    <option value="半休" @selected(old('request_type') === '半休')>半休</option>
+                    <option value="残業" @selected(old('request_type') === '残業')>残業</option>
+                    <option value="有事遅刻" @selected(old('request_type') === '有事遅刻')>有事遅刻</option>
+                    <option value="有事早退" @selected(old('request_type') === '有事早退')>有事早退</option>
                 </select>
+                @error('request_type')
+                <span style="color:#dc2626; font-size:12px; display:block; margin-top:4px;">{{ $message }}</span>
+                @enderror
             </div>
 
             <div id="dash_time_wrapper" style="margin-bottom: 15px; text-align: left;">
@@ -401,22 +412,31 @@ $groupedHistory = $history->groupBy('punch_date');
                         </label>
                     </div>
                 </div>
-                <input type="time" id="dash_request_time" name="request_time" class="dashboard-input-time" style="width:100%; height:38px;">
+                <input type="time" id="dash_request_time" name="request_time" value="{{ old('request_time') }}" class="dashboard-input-time" style="width:100%; height:38px;">
                 {{-- ONの間、サーバー側で「打刻に合わせた」申請だと判別するためのフラグ --}}
-                <input type="hidden" name="sync_with_punch" id="dash_sync_punch_field" value="0">
+                <input type="hidden" name="sync_with_punch" id="dash_sync_punch_field" value="{{ old('sync_with_punch', '0') }}">
+                @error('request_time')
+                <span id="dash_error_request_time" style="color:#dc2626; font-size:12px; display:block; margin-top:4px;">{{ $message }}</span>
+                @enderror
             </div>
 
             <div id="dash_halfday_wrapper" style="margin-bottom: 15px; text-align: left; display:none;">
                 <label for="dash_halfday_type" style="display:block; font-weight:bold; margin-bottom: 5px; font-size:14px;">半休区分 <span style="color:red;">*</span></label>
                 <select id="dash_halfday_type" name="halfday_type" class="dashboard-input-text" style="width:100%; height:38px; background-color:#fff;">
-                    <option value="前半休">前半休</option>
-                    <option value="後半休">後半休</option>
+                    <option value="前半休" @selected(old('halfday_type') === '前半休')>前半休</option>
+                    <option value="後半休" @selected(old('halfday_type') === '後半休')>後半休</option>
                 </select>
+                @error('halfday_type')
+                <span style="color:#dc2626; font-size:12px; display:block; margin-top:4px;">{{ $message }}</span>
+                @enderror
             </div>
 
             <div style="margin-bottom: 15px; text-align: left;">
                 <label for="dash_memo" style="display:block; font-weight:bold; margin-bottom: 5px; font-size:14px;">申請理由・補足事項をご記入ください <span style="color:red;">*</span></label>
-                <input type="text" id="dash_memo" name="memo" maxlength="255" required placeholder="例: 電車遅延のため、私用のため、体調不良のため" class="dashboard-input-text" style="width:100%; height:38px;">
+                <input type="text" id="dash_memo" name="memo" maxlength="255" required value="{{ old('memo') }}" placeholder="例: 電車遅延のため、私用のため、体調不良のため" class="dashboard-input-text" style="width:100%; height:38px;">
+                @error('memo')
+                <span style="color:#dc2626; font-size:12px; display:block; margin-top:4px;">{{ $message }}</span>
+                @enderror
             </div>
 
             <div style="margin-bottom: 25px; text-align: left;">
@@ -429,6 +449,9 @@ $groupedHistory = $history->groupBy('punch_date');
                     <img id="dash_dropzone_preview" class="dashboard-dropzone-preview" style="display:none;" alt="添付ファイルのプレビュー">
                     <span class="dashboard-dropzone-filename" id="dash_dropzone_filename"></span>
                 </div>
+                @error('attachment')
+                <span style="color:#dc2626; font-size:12px; display:block; margin-top:4px;">{{ $message }}</span>
+                @enderror
                 <input type="file" id="dash_attachment" name="attachment" style="display:none;">
             </div>
 
