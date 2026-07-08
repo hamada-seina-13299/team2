@@ -6,6 +6,9 @@ use App\Models\User;    // DB関係のファイル
 use Illuminate\Http\Request;    // ユーザからの入力を扱うためのツール
 use Illuminate\Support\Facades\Auth;    // ユーザの状態を管理・チェックする
 use Illuminate\Support\Facades\Hash;    // パスワードのハッシュ化
+use Illuminate\Support\Str;    // 一時的なURL用トークンを生成するため
+use Illuminate\Support\Facades\Mail; // メール送信ファサード
+use App\Mail\ResetPasswordMail;
 
 class LoginController extends Controller
 {
@@ -96,4 +99,110 @@ class LoginController extends Controller
         // ログアウト後、ログイン画面に遷移
         return redirect()->route('login');
     }
+
+
+    // ================================================
+    // パスワード再設定
+    // メールアドレス入力・送信
+    // ================================================
+    // 「パスワードをお忘れの方はこちら」から遷移する画面を表示
+    public function showRequestForm()
+    {
+        return view('password.passwordRequest', ['email' => '']);
+    }
+
+    // 送信ボタンが押された時の処理（メール送信）
+    public function sendResetLink(Request $request)
+    {
+        $errorList = [];
+        $email = $request->input('email');
+
+        // 未入力チェック
+        if (empty($email)) {
+            $errorList[] = 'メールアドレスを入力してください';
+        }
+
+        // エラーがあった場合
+        if (!empty($errorList)) {
+            return view('password.passwordRequest', [
+                'errorList' => $errorList,
+                'email' => $email
+            ]);
+        }
+
+        // パスワード変更URLに添付する一時的なランダム文字列（トークン）を生成
+        $token = Str::random(60);
+        
+        // パスワード変更画面のURLを生成
+        $resetUrl = url("/password/passwordReset/{$token}?email=" . urlencode($email));
+
+        // 生成した $resetUrl をメールに添付して、 $email 宛てに送信
+        Mail::to($email)->send(new ResetPasswordMail($resetUrl));
+    
+
+        // メール送信完了画面（または完了メッセージ付きで同じ画面）を表示
+        return view('password.passwordRequest', [
+            'successMessage' => 'パスワード変更用URLをメールに送信しました',
+            'email' => $email,
+            'developerUrl' => $resetUrl // 開発中はメールの代わりに画面にURLを出して動作確認できるようにしています
+        ]);
+    }
+
+
+    // ================================================
+    // パスワード再設定
+    // URLクリック後の新パスワード入力・変更確定
+    // ================================================
+
+    // メールに添付されたURLをクリックした際の、新しいパスワード入力画面を表示
+    public function showResetForm(Request $request, $token)
+    {
+        return view('password.passwordReset', [
+            'token' => $token,
+            'email' => $request->query('email', '')
+        ]);
+    }
+
+    // 確定ボタンが押された時のパスワード更新処理
+    public function resetPassword(Request $request)
+    {
+        $errorList = [];
+        $email = $request->input('email');
+        $token = $request->input('token');
+        $password = $request->input('password');
+
+        if (empty($password)) {
+            $errorList[] = '新しいパスワードを入力してください';
+        }
+
+        if (!empty($errorList)) {
+            return view('password.passwordReset', [
+                'errorList' => $errorList,
+                'token' => $token,
+                'email' => $email
+            ]);
+        }
+
+        // 対象のユーザーを検索してパスワードを更新
+        $user = User::where('email', $email)->first();
+        if ($user) {
+            $user->password = Hash::make($password);
+            $user->save();
+
+            // 「変更されました」のポップアップを出すトリガーとして、セッション（フラッシュデータ）に値を格納
+            // ログイン画面（index）にリダイレクトします
+            return view('password.passwordReset', [
+                'password_changed' => true, // フロント側でポップアップを表示させるフラグ
+                'token' => $token,
+                'email' => $email
+            ]);        }
+
+        $errorList[] = 'ユーザーの特定に失敗しました。もう一度最初からやり直してください。';
+        return view('password.passwordReset', [
+            'errorList' => $errorList,
+            'token' => $token,
+            'email' => $email
+        ]);
+    }
+   
 }

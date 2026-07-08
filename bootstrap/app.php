@@ -24,9 +24,17 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::middleware('web')
                 ->group(base_path('routes/shift.php'));
 
+            // report.php を追加
+            Route::middleware('web')
+                ->group(base_path('routes/report.php'));
+
             // attendancecorrection.php を追加
             Route::middleware('web')
                 ->group(base_path('routes/attendancecorrection.php'));
+
+            // attendance.php を追加
+            Route::middleware('web')
+                ->group(base_path('routes/attendance.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {

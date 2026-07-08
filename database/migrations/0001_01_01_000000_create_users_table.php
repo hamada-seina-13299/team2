@@ -14,8 +14,11 @@ return new class extends Migration
             $table->string('email', 255);
             $table->string('password', 255);
             $table->string('dept')->nullable();
+            $table->boolean('admin')->default(false);
             $table->date('entering_company_date');
             $table->boolean('can_auto_break')->default(false);
+            $table->integer('paid_leave_days')->default(0);
+            $table->integer('half_day_leave_days')->default(0);
             $table->timestamps();
         });
         

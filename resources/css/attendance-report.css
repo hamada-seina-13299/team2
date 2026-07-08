@@ -1,0 +1,111 @@
+/* 出勤・打刻データ レポート画面 専用スタイル */
+
+.report-attendance-filter-form {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+}
+
+@media (min-width: 640px) {
+    .report-attendance-filter-form {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.report-attendance-filter-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6b7280;
+}
+
+.report-attendance-filter-input,
+.report-attendance-filter-select {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    background-color: #fff;
+}
+
+.report-attendance-search-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.report-attendance-search-btn {
+    padding: 0.5rem 1rem;
+    background-color: #2563eb;
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    white-space: nowrap;
+}
+
+.report-attendance-search-btn:hover {
+    background-color: #1d4ed8;
+}
+
+.report-attendance-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    min-width: 800px;
+}
+
+.report-attendance-th {
+    padding: 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #4b5563;
+    text-align: center;
+    background-color: rgba(249, 250, 251, 0.75);
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.report-attendance-row {
+    border-bottom: 1px solid #f3f4f6;
+    height: 3.5rem;
+}
+
+.report-attendance-td {
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    color: #4b5563;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.report-attendance-td-name {
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.report-attendance-td-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.report-status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.report-status-badge-出勤 { background-color: #d1fae5; color: #047857; }
+.report-status-badge-遅刻 { background-color: #fef3c7; color: #b45309; }
+.report-status-badge-欠勤 { background-color: #fee2e2; color: #b91c1c; }
+.report-status-badge-休み { background-color: #f3f4f6; color: #6b7280; }
+.report-status-badge-default { background-color: #f3f4f6; color: #9ca3af; }
+
+.report-attendance-empty {
+    padding: 1.5rem;
+    text-align: center;
+    color: #9ca3af;
+}

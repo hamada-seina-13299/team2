@@ -130,6 +130,20 @@
 
 .btn-delete:hover { background-color: #fef2f2; }
 
+.btn-approve {
+    border: 1px solid #34d399;
+    color: #059669;
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.5rem;
+    background: #fff;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background-color 0.15s;
+}
+
+.btn-approve:hover { background-color: #ecfdf5; }
+
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
@@ -140,9 +154,6 @@
 }
 
 .floating-bulk-btn {
-    position: fixed;
-    bottom: 1.5rem;
-    right: 1.5rem;
     z-index: 40;
     background-color: #2563eb;
     color: #fff;
@@ -154,6 +165,7 @@
     align-items: center;
     gap: 0.5rem;
     font-size: 0.875rem;
+    white-space: nowrap;
     transition: all 0.2s;
     border: none;
     cursor: pointer;
@@ -165,6 +177,45 @@
 }
 .floating-bulk-btn:active {
     transform: translateY(0);
+}
+
+.floating-bulk-btn-green {
+    background-color: #059669;
+}
+.floating-bulk-btn-green:hover {
+    background-color: #047857;
+}
+
+.floating-bulk-btn-static {
+    cursor: default;
+}
+.floating-bulk-btn-static:hover {
+    background-color: #059669;
+    transform: none;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.floating-btn-swap {
+    position: relative;
+    min-height: 3.25rem;
+    min-width: 12rem;
+}
+
+.floating-btn-slot {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    white-space: nowrap;
+    width: max-content;
+}
+
+.floating-btn-slot.btn-slot-hidden {
+    opacity: 0;
+    transform: translateY(14px);
+    pointer-events: none;
 }
 
 .bulk-message-box {

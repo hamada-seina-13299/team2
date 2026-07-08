@@ -560,7 +560,11 @@ document.addEventListener('DOMContentLoaded', () => {
     sessionAlerts.forEach(alert => {
         if (alert.id === 'dynamic-flash-error') return;
         const bg = alert.style.backgroundColor;
-        if (bg.includes('rgb(209, 250, 229)') || bg.includes('rgb(254, 226, 226)') || bg.includes('#d1fae5') || bg.includes('#fee2e2')) {
+        
+        if (
+            bg.includes('rgb(209, 250, 229)') || bg.includes('rgb(254, 226, 226)') || bg.includes('rgb(254, 240, 138)') || 
+            bg.includes('#d1fae5') || bg.includes('#fee2e2') || bg.includes('#fef08a')
+        ) {
             setTimeout(() => {
                 alert.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
                 alert.style.opacity = '0';
@@ -641,3 +645,309 @@ function filterCorrectionHistoryByDate(targetDate) {
         emptyRow.style.display = (visibleCount === 0) ? '' : 'none';
     }
 }
+
+// ==========================================================================
+// 勤怠申請モーダル専用の制御処理
+// ==========================================================================
+
+// 申請種別ごとの設定
+// mode: 'time'(時刻入力) / 'halfday'(前半休・後半休の選択) / 'none'(入力不要)
+// syncField: 'attendance'(出勤打刻) or 'leaving'(退勤打刻) or null（対応する打刻なし）
+const DASH_TYPE_CONFIG = {
+    '遅刻':     { mode: 'time', label: '遅刻時刻',         syncField: 'attendance' },
+    '有事遅刻': { mode: 'time', label: '遅刻時刻',         syncField: 'attendance' },
+    '早退':     { mode: 'time', label: '早退時刻',         syncField: 'leaving' },
+    '有事早退': { mode: 'time', label: '早退時刻',         syncField: 'leaving' },
+    '残業':     { mode: 'time', label: '残業終了予定時刻', syncField: 'leaving' },
+    '半休':     { mode: 'halfday' },
+    '欠勤':     { mode: 'none' },
+    '有給':     { mode: 'none' },
+};
+
+// 申請種別によって「時間入力欄 / 半休区分欄 / 打刻に合わせるトグル」の表示を切り替える
+function toggleDashTimeField() {
+    const typeSelect = document.getElementById('dash_request_type');
+    const timeWrapper = document.getElementById('dash_time_wrapper');
+    const halfdayWrapper = document.getElementById('dash_halfday_wrapper');
+    const input = document.getElementById('dash_request_time');
+    const labelEl = document.getElementById('dash_time_label');
+    const syncToggleWrapper = document.getElementById('dash_sync_toggle_wrapper');
+    const halfdaySelect = document.getElementById('dash_halfday_type');
+
+    if (!typeSelect || !timeWrapper || !halfdayWrapper || !input) return;
+
+    const config = DASH_TYPE_CONFIG[typeSelect.value] || { mode: 'none' };
+
+    // 種別を切り替えたら「打刻に合わせる」は必ずOFFに戻す（前の種別の同期状態を引きずらないため）
+    setDashSyncToggle(false);
+
+    // いったん全部非表示・非必須にリセット
+    timeWrapper.style.display = 'none';
+    halfdayWrapper.style.display = 'none';
+    input.required = false;
+    if (halfdaySelect) halfdaySelect.required = false;
+    if (syncToggleWrapper) syncToggleWrapper.style.display = 'none';
+
+    if (config.mode === 'time') {
+        timeWrapper.style.display = '';
+        input.required = true;
+        if (labelEl) {
+            labelEl.innerHTML = `${config.label} <span style="color:red;">*</span>`;
+        }
+        // 打刻に合わせるトグルは、対応する打刻（出勤/退勤）がある種別だけ表示する
+        if (syncToggleWrapper && config.syncField) {
+            syncToggleWrapper.style.display = 'flex';
+        }
+    } else if (config.mode === 'halfday') {
+        halfdayWrapper.style.display = '';
+        if (halfdaySelect) halfdaySelect.required = true;
+    } else {
+        input.value = '';
+    }
+}
+
+// 「打刻に合わせる」トグルのON/OFFを、見た目・値まで含めてまとめて切り替える
+function setDashSyncToggle(isOn) {
+    const toggleInput = document.getElementById('dash_sync_punch_toggle');
+    if (toggleInput) {
+        toggleInput.checked = isOn;
+    }
+    applyDashSyncState(isOn);
+}
+
+// トグルの状態を「入力欄の見た目・値・readonly」「hidden項目」「ON/OFF表示」に反映する
+function applyDashSyncState(isOn) {
+    const input = document.getElementById('dash_request_time');
+    const hiddenField = document.getElementById('dash_sync_punch_field');
+    const toggleTextEl = document.querySelector('#dash_sync_toggle_wrapper .toggle-text');
+    if (!input) return;
+
+    if (hiddenField) hiddenField.value = isOn ? '1' : '0';
+    if (toggleTextEl) toggleTextEl.textContent = isOn ? 'ON' : 'OFF';
+
+    if (isOn) {
+        // ONにする直前の手入力値を退避し、OFFに戻した時に復元できるようにする
+        if (!input.hasAttribute('data-manual-value')) {
+            input.setAttribute('data-manual-value', input.value || '');
+        }
+        input.readOnly = true; // disabledではなくreadonly：送信データとして残すため
+        syncDashTimeWithPunch();
+    } else {
+        input.readOnly = false;
+        input.title = '';
+        if (input.hasAttribute('data-manual-value')) {
+            input.value = input.getAttribute('data-manual-value');
+            input.removeAttribute('data-manual-value');
+        }
+    }
+}
+
+// 対象日・申請種別から対応する打刻時刻（出勤 or 退勤）を取得して入力欄にセットする
+function syncDashTimeWithPunch() {
+    const typeSelect = document.getElementById('dash_request_type');
+    const dateInput = document.getElementById('dash_target_date');
+    const input = document.getElementById('dash_request_time');
+    const toggleInput = document.getElementById('dash_sync_punch_toggle');
+
+    if (!typeSelect || !dateInput || !input || !toggleInput || !toggleInput.checked) return;
+
+    const config = DASH_TYPE_CONFIG[typeSelect.value];
+    if (!config || !config.syncField) return;
+
+    // 打刻修正モーダルと同じ #all-history-json-data（Controllerのallhistoryjson）から取得する
+    const historyJsonEl = document.getElementById('all-history-json-data');
+    const allHistory = historyJsonEl ? JSON.parse(historyJsonEl.getAttribute('data-history')) : {};
+    const dayData = allHistory[dateInput.value];
+    const punchTime = dayData ? dayData[config.syncField] : '';
+
+    input.value = punchTime || '';
+    // その日の打刻データが見つからない場合にわかるようにしておく（マウスオーバーで表示）
+    input.title = punchTime ? '' : '対象日の打刻データが見つかりませんでした';
+}
+
+// モーダルを開く関数
+function openAttendanceRequestModal(defaultDate = '') {
+    const modal = document.getElementById('attendance-request-modal-overlay');
+    const form = document.getElementById('dashboard-attendance-form');
+
+    if (!modal || !form) return;
+
+    form.reset();
+    document.getElementById('dash_method_field').value = 'POST';
+    resetDashDropzone();
+
+    if (defaultDate) {
+        document.getElementById('dash_target_date').value = defaultDate;
+    }
+
+    toggleDashTimeField();
+
+    // 他のモーダル（fix-modal-overlay）と同じ「is-open」方式で表示制御する
+    modal.classList.add('is-open');
+}
+
+// モーダルを閉じる関数
+function closeAttendanceRequestModal() {
+    const modal = document.getElementById('attendance-request-modal-overlay');
+    if (modal) {
+        modal.classList.remove('is-open');
+    }
+}
+
+// 添付ファイルのドロップゾーン表示（ファイル名・プレビュー）をリセットする関数
+function resetDashDropzone() {
+    const filenameEl = document.getElementById('dash_dropzone_filename');
+    const dropzone = document.getElementById('dash_dropzone');
+    const previewEl = document.getElementById('dash_dropzone_preview');
+
+    if (filenameEl) filenameEl.textContent = '';
+    if (dropzone) dropzone.classList.remove('is-dragover');
+    if (previewEl) {
+        if (previewEl.src && previewEl.src.startsWith('blob:')) {
+            URL.revokeObjectURL(previewEl.src); // メモリリーク防止
+        }
+        previewEl.removeAttribute('src');
+        previewEl.style.display = 'none';
+    }
+}
+
+// DOMが読み込まれたら、イベントリスナーを「単独で」登録する
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('attendance-request-modal-overlay');
+
+    // 📝 勤怠申請ボタンのクリックイベントを設定
+    const reqBtn = document.querySelector('.btn-attendance-request');
+    if (reqBtn) {
+        reqBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            // ボタンの data-date 属性から日付を取得（無ければ今日の日付）
+            const defaultDate = reqBtn.getAttribute('data-date') || '';
+            openAttendanceRequestModal(defaultDate);
+        });
+    }
+
+    // 申請種別セレクトボックスの変更イベントを設定
+    const typeSelect = document.getElementById('dash_request_type');
+    if (typeSelect) {
+        typeSelect.addEventListener('change', toggleDashTimeField);
+    }
+
+    // 🔁 対象日を変更した時、「打刻に合わせる」がONならその日の打刻で再同期する
+    const dateInput = document.getElementById('dash_target_date');
+    if (dateInput) {
+        dateInput.addEventListener('change', syncDashTimeWithPunch);
+    }
+
+    // 🔀 「打刻に合わせる」トグルの切り替え
+    const syncToggle = document.getElementById('dash_sync_punch_toggle');
+    if (syncToggle) {
+        syncToggle.addEventListener('change', (e) => {
+            applyDashSyncState(e.target.checked);
+        });
+    }
+
+    // ❌ 「閉じる」ボタン
+    // @vite で読み込まれるJSは type="module" で実行されるため、モジュール内の関数は
+    // window（グローバルスコープ）には自動で公開されない。そのためHTML側の
+    // onclick="closeAttendanceRequestModal()" のようなインライン記述は
+    // 「ReferenceError: closeAttendanceRequestModal is not defined」で失敗し、無反応に見える。
+    // → addEventListener でモジュール内から確実にバインドする。
+    const closeBtn = document.getElementById('dash_close_btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeAttendanceRequestModal);
+    }
+
+    // 🖱️ モーダルの「枠外」をクリックしたら閉じる（他モーダルと同じ挙動）
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeAttendanceRequestModal();
+            }
+        });
+    }
+
+    // ⌨️ Escキーでも閉じられるようにする
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal && modal.classList.contains('is-open')) {
+            closeAttendanceRequestModal();
+        }
+    });
+
+    // 📎 添付ファイル：ドラッグ&ドロップ + クリックで選択 + プレビュー表示
+    const dropzone = document.getElementById('dash_dropzone');
+    const dropzoneBtn = document.getElementById('dash_dropzone_btn');
+    const dropzoneFilename = document.getElementById('dash_dropzone_filename');
+    const dropzonePreview = document.getElementById('dash_dropzone_preview');
+    const fileInput = document.getElementById('dash_attachment');
+
+    if (dropzone && fileInput) {
+        const showSelectedFile = () => {
+            const file = (fileInput.files && fileInput.files.length > 0) ? fileInput.files[0] : null;
+
+            // 前回のプレビュー用Object URLは必ず解放してからでないとメモリリークする
+            if (dropzonePreview.src && dropzonePreview.src.startsWith('blob:')) {
+                URL.revokeObjectURL(dropzonePreview.src);
+            }
+
+            if (!file) {
+                dropzoneFilename.textContent = '';
+                dropzonePreview.style.display = 'none';
+                dropzonePreview.removeAttribute('src');
+                return;
+            }
+
+            dropzoneFilename.textContent = file.name;
+
+            // 画像ファイルの時だけサムネイルを表示する（表示サイズはCSS側で最大120pxに固定）
+            if (file.type && file.type.startsWith('image/')) {
+                dropzonePreview.src = URL.createObjectURL(file);
+                dropzonePreview.style.display = 'block';
+            } else {
+                dropzonePreview.style.display = 'none';
+                dropzonePreview.removeAttribute('src');
+            }
+        };
+
+        // 「ファイル選択」ボタン・ドロップゾーン自体のクリックで隠しinputを起動
+        if (dropzoneBtn) {
+            dropzoneBtn.addEventListener('click', () => fileInput.click());
+        }
+        dropzone.addEventListener('click', (e) => {
+            if (e.target === dropzoneBtn) return; // ボタン側で処理済みなので二重発火を防止
+            fileInput.click();
+        });
+
+        // 通常のファイル選択ダイアログ経由でも反映
+        fileInput.addEventListener('change', showSelectedFile);
+
+        // ドラッグ&ドロップ
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.add('is-dragover');
+            });
+        });
+
+        ['dragleave', 'dragend'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.remove('is-dragover');
+            });
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('is-dragover');
+
+            const droppedFiles = e.dataTransfer.files;
+            if (droppedFiles && droppedFiles.length > 0) {
+                // input[type=file].files は読み取り専用なので DataTransfer 経由で差し替える
+                fileInput.files = droppedFiles;
+                showSelectedFile();
+            }
+        });
+    }
+});

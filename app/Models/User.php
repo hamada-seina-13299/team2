@@ -17,7 +17,10 @@ class User extends Authenticatable
         'email',
         'password',
         'dept',
+        'admin',
         'entering_company_date',
+        'paid_leave_days',
+        'half_day_leave_days'
     ];
 
     protected $hidden = [
@@ -30,9 +33,15 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'admin' => 'boolean',
         ];
     }
 
+    public function isAdmin(): bool
+    {
+        return $this->admin === true;
+    }
+    
     // このユーザーが持つシフト一覧
     public function shifts(): HasMany
     {
