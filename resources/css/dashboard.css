@@ -410,6 +410,134 @@ body {
 }
 
 /* ==========================================================================
+   📝 勤怠申請モーダル用のスタイル
+   ========================================================================== */
+.dashboard-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.dashboard-modal-overlay.is-open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.dashboard-modal-box {
+    background-color: #ffffff;
+    width: 90%;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    padding: 24px;
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: translateY(-20px);
+    transition: transform 0.3s ease;
+}
+
+.dashboard-modal-overlay.is-open .dashboard-modal-box {
+    transform: translateY(0);
+}
+
+.dashboard-nav-btn {
+    background: none;
+    border: none;
+    color: #7f8c8d;
+    cursor: pointer;
+}
+
+.dashboard-input-text,
+.dashboard-input-time {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 14px;
+}
+
+/* 「打刻に合わせる」ON時：白黒(グレーアウト)にして読み取り専用であることを示す */
+.dashboard-input-time[readonly] {
+    background-color: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.dashboard-footer-actions {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.dashboard-btn-close {
+    background-color: #ffffff;
+    border: 1px solid #26d0ce;
+    color: #26d0ce;
+    padding: 10px 30px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.dashboard-btn-submit {
+    background-color: #26d0ce;
+    color: #ffffff;
+    border: none;
+    padding: 10px 40px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* 📎 添付ファイル：ドラッグ&ドロップ領域 */
+.dashboard-dropzone {
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+    padding: 24px 12px;
+    text-align: center;
+    color: #7f8c8d;
+    font-size: 13px;
+    background-color: #fafafa;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+    cursor: pointer;
+}
+
+.dashboard-dropzone.is-dragover {
+    border-color: #26d0ce;
+    background-color: #e6f7f7;
+    color: #1aaba8;
+}
+
+.dashboard-dropzone .dashboard-dropzone-filename {
+    display: block;
+    margin-top: 8px;
+    font-weight: bold;
+    color: #333333;
+    font-size: 13px;
+}
+
+/* 添付画像プレビュー：モーダルを圧迫しないよう高さの上限を固定 */
+.dashboard-dropzone-preview {
+    display: block;
+    max-width: 100%;
+    max-height: 120px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    margin: 10px auto 0;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+}
+
+/* ==========================================================================
    🎛️ トグルスイッチ構造・デザイン完全定義（上書き箇所）
    ========================================================================== */
 /* スイッチ全体のサイズ */

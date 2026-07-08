@@ -71,7 +71,7 @@ class WorkingCorrectionController extends Controller
         }
 
         // ==========================================================================
-        // 💡 要望３修正：動的追加で「休憩開始」が申請された場合、休憩終了もここで自動計算して確定させる
+        // 動的追加で「休憩開始」が申請された場合、休憩終了もここで自動計算して確定させる
         // ==========================================================================
         if (in_array('休憩開始', $dynamicTypes) && !empty($breakTime)) {
             // シフトデータから休憩時間の長さを取得して加算
@@ -108,23 +108,31 @@ class WorkingCorrectionController extends Controller
         }
         $memo = implode("\n", $reasons);
 
-        // 6. workingsテーブルへの即時反映（更新または新規追加）
-        $updateData = [
-            'attendance'     => $attendance,
-            'leaving'        => $leaving,
-            'break_time'     => $breakTime,
-            'break_end_time' => $breakEndTime, // 💡 自動計算された値がここに入ります
-            'working_place'  => $newWorkingPlace,
-            'updated_at'     => Carbon::now()
-        ];
+        // 6. workingsテーブルへの即時反映（更新・追加、または出勤削除時の物理削除）
 
-        if ($existingRecord) {
-            DB::table('workings')->where('id', $existingRecord->id)->update($updateData);
+        if (is_null($attendance)) {
+            if ($existingRecord) {
+                DB::table('workings')->where('id', $existingRecord->id)->delete();
+            }
         } else {
-            $updateData['user_id'] = $userId;
-            $updateData['punch_date'] = $targetDate;
-            $updateData['created_at'] = Carbon::now();
-            DB::table('workings')->insert($updateData);
+
+            $updateData = [
+                'attendance'     => $attendance,
+                'leaving'        => $leaving,
+                'break_time'     => $breakTime,
+                'break_end_time' => $breakEndTime, // 💡 自動計算された値がここに入ります
+                'working_place'  => $newWorkingPlace,
+                'updated_at'     => Carbon::now()
+            ];
+
+            if ($existingRecord) {
+                DB::table('workings')->where('id', $existingRecord->id)->update($updateData);
+            } else {
+                $updateData['user_id'] = $userId;
+                $updateData['punch_date'] = $targetDate;
+                $updateData['created_at'] = Carbon::now();
+                DB::table('workings')->insert($updateData);
+            }
         }
 
         // ==========================================================================
@@ -146,20 +154,20 @@ class WorkingCorrectionController extends Controller
             'target_date'           => $targetDate,
             'status'                => '申請中',
             'updater_name'          => Auth::user()->name,
-            
+
             'before_attendance'     => $beforeAttendance,
             'after_attendance'      => ($bAttendanceComp !== $aAttendanceComp) ? $attendance : $beforeAttendance,
-            
+
             'before_leaving'        => $beforeLeaving,
             'after_leaving'         => ($bLeavingComp !== $aLeavingComp) ? $leaving : $beforeLeaving,
-            
+
             'before_break_time'     => $beforeBreakTime,
             'after_break_time'      => ($bBreakTimeComp !== $aBreakTimeComp) ? $breakTime : $beforeBreakTime,
-            
+
             'before_break_end_time' => $beforeBreakEndTime,
             //  時分比較により、自動計算された休憩終了時刻がしっかりと履歴（アフター）に保存されます
             'after_break_end_time'  => ($bBreakEndComp !== $aBreakEndComp) ? $breakEndTime : $beforeBreakEndTime,
-            
+
             'before_working_place'  => $beforeWorkingPlace,
             'after_working_place'   => $afterWorkingPlaceDisplay,
             'memo'                  => $memo,
@@ -181,11 +189,13 @@ class WorkingCorrectionController extends Controller
             ->where('punch_date', $correction->target_date)
             ->first();
 
-        if (is_null($correction->before_attendance) && 
-            is_null($correction->before_leaving) && 
-            is_null($correction->before_break_time) && 
-            is_null($correction->before_break_end_time)) {
-            
+        if (
+            is_null($correction->before_attendance) &&
+            is_null($correction->before_leaving) &&
+            is_null($correction->before_break_time) &&
+            is_null($correction->before_break_end_time)
+        ) {
+
             DB::table('workings')
                 ->where('user_id', $correction->user_id)
                 ->where('punch_date', $correction->target_date)
@@ -198,7 +208,7 @@ class WorkingCorrectionController extends Controller
                 ->where('shifts.target_date', $correction->target_date)
                 ->select('shift_masters.working_place')
                 ->first();
-                
+
             $plannedPlace = $shiftData ? $shiftData->working_place : '未定';
 
             // 動的ロールバック用配列の初期化
@@ -231,8 +241,8 @@ class WorkingCorrectionController extends Controller
 
             // 勤務地のロールバック判定
             if ($correction->before_working_place !== $correction->after_working_place) {
-                $rollbackData['working_place'] = ($correction->before_working_place === $plannedPlace) 
-                    ? null 
+                $rollbackData['working_place'] = ($correction->before_working_place === $plannedPlace)
+                    ? null
                     : $correction->before_working_place;
             }
 

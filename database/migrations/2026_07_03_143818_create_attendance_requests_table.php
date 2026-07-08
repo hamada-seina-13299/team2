@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('attendance_requests', function (Blueprint $table) {
             // 勤怠申請ID（主キー、自動採番）
             $table->id();
- 
+
             // ユーザーID
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
 
@@ -23,15 +23,21 @@ return new class extends Migration
 
             // 申請種別
             $table->string('request_type');
- 
+
             // メモ
-            $table->string('memo');            
- 
+            $table->string('memo');
+
             // 申請時刻
             $table->time('request_time')->nullable();
- 
+
             // 添付ファイル
             $table->string('attachment')->nullable();
+
+            // ステータス：デフォルト「申請中」、他は「承認」「却下」などの日本語文字列
+            $table->string('status')->default('申請中');
+
+            //申請・承認・却下したユーザーの名前を保存するカラムを追加、更新時のログインユーザー名
+            $table->string('updater_name')->nullable();
 
             // 作成日時、更新日時
             $table->timestamps();
