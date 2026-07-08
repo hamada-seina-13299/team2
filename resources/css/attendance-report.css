@@ -49,6 +49,19 @@
     background-color: #1d4ed8;
 }
 
+.report-attendance-summary {
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: #4b5563;
+    text-align: center;
+}
+
+.report-attendance-summary-num {
+    font-weight: 700;
+    color: #1f2937;
+    font-size: 1rem;
+}
+
 .report-attendance-table {
     width: 100%;
     border-collapse: collapse;
