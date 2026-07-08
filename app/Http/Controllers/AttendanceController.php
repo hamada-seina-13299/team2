@@ -86,7 +86,7 @@ class AttendanceController extends Controller
         $summary['monthly_status'] = $submission->memo ?? '未申請';
         $summary['can_submit'] = $summary['monthly_status'] === '未申請' && $lastWorking && $lastWorking->leaving;
 
-        return view('attendance', [
+        return view('attendance.attendance', [
             'user'         => $user,
             'calendar'     => $calendar,
             'currentMonth' => $currentMonth,
