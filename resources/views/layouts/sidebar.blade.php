@@ -9,7 +9,10 @@
     <a href="#" class="sidebar-icon" data-tooltip="勤務表">📊</a>
     <a href="#" class="sidebar-icon" data-tooltip="各種申請">📄</a>
     <a href="#" class="sidebar-icon" data-tooltip="マイデータ">👤</a>
-    <a href="#" class="sidebar-icon" data-tooltip="社員検索">🔍</a>
+    
+    <a href="{{ route('employee.search') }}"
+   class="sidebar-icon {{ request()->routeIs('employee.*') ? 'active' : '' }}"
+   data-tooltip="社員検索">🔍</a>
     
     <a href="{{ route('report.index') }}"
    class="sidebar-icon {{ request()->routeIs('report.*') || request()->routeIs('shift.approvals.*') ? 'active' : '' }}"
