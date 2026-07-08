@@ -2,19 +2,25 @@
 
 /* 🧭 左側：コンパクトアイコンサイドバー（スクロール固定化） */
 .sidebar {
-    width: 60px;
+    width: 40px; /* 閉じたときの幅 */
     background-color: #ffffff;
     border-right: 1px solid #e5e7eb;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding-top: 20px;
+    align-items: flex-start;
+    padding-top: 0;
     gap: 20px;
-    position: fixed; /* 下にスクロールしても固定 */
+    position: fixed;
     top: 0;
     left: 0;
     height: 100vh;
     z-index: 90;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* JavaScriptでこのクラスがついた時、幅が広がる */
+.sidebar.is-open {
+    width: 200px;
 }
 
 .sidebar-icon {
@@ -22,12 +28,13 @@
     height: 36px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     color: #6b7280;
-    font-size: 18px;
     text-decoration: none;
     border-radius: 8px;
-    position: relative; /* 💡 ツールチップの基準点にするために追加 */
+    position: relative;
+    margin-left: 2px;
+    box-sizing: border-box;
 }
 
 .sidebar-icon.active {
@@ -35,18 +42,105 @@
     color: #26d0ce;
     border-left: 3px solid #26d0ce;
     border-radius: 0 8px 8px 0;
-    width: 100%;
+    width: calc(100% - 2px);
+    margin-left: 0;
+    padding-left: 2px;
+}
+
+/* 絵文字アイコンの幅を固定 */
+.icon-emoji {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 18px;
 }
 
 /* ==========================================================================
-   💡 サイドバーアイコン ホバー時の画面名（ツールチップ）表示スタイル
+   💡 ロゴエリアのスタイル（🕒打刻との間のスペースを詰めました）
+   ========================================================================== */
+.sidebar-logo {
+    width: 100%;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 0px; /* 💡 10px から 0px にして、打刻アイコンとの隙間をギュッと詰めました */
+    padding-left: 2px;
+    box-sizing: border-box;
+}
+
+.sidebar-logo img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
+   アプリ名（Sky Duty）の高級感あるフォントスタイル
+   ========================================================================== */
+.brand-name {
+    font-size: 18px;
+    font-weight: 800;
+    color: #1e3a8a;
+    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
+    letter-spacing: 0.5px;
+    
+    /* 閉じてる時は非表示 */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-10px);
+    transition: opacity 0.2s ease, transform 0.3s ease, visibility 0.2s;
+    white-space: nowrap;
+    margin-left: 10px;
+}
+
+/* メメニューテキストの開閉制御 */
+.sidebar-text {
+    font-size: 14px;
+    color: #374151;
+    font-weight: 500;
+    
+    /* 閉じてる時は非表示 */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s;
+    white-space: nowrap;
+    margin-left: 12px;
+}
+
+/* サイドバーが開いている（.is-open）時だけ文字を表示 */
+.sidebar.is-open .brand-name {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+}
+
+.sidebar.is-open .sidebar-text {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* サイドバーが開いて文字が見えている時は、ツールチップ（ボックスと◀）の両方を完全に隠す */
+.sidebar.is-open .sidebar-icon:hover::after,
+.sidebar.is-open .sidebar-icon:hover::before {
+    opacity: 0 !important;
+    transition: none !important;
+}
+
+/* ==========================================================================
+   ツールチップ（::after=ボックス, ::before=◀）の基本設定
    ========================================================================== */
 
-/* ホバー時に表示される画面名のブラックボックス（初期状態は透明化） */
+/* ⬛ ホバー時に表示される画面名のブラックボックス（フワッと消える余韻を残す） */
 .sidebar-icon::after {
-    content: attr(data-tooltip); /* HTML側の data-tooltip 属性値（文字）を動的抽出 */
+    content: attr(data-tooltip);
     position: absolute;
-    left: 55px; /* アイコンの右側にきれいに並ぶようマージンを調整 */
+    left: 55px;
     top: 50%;
     transform: translateY(-50%);
     background-color: #333333;
@@ -59,11 +153,11 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease; /* ボックスは従来通りフワッと消える */
     z-index: 2000;
 }
 
-/* ポップアップの左側につく小さな三角の突起（初期状態は透明） */
+/* ◀ ポップアップの左側につく小さな三角の突起 */
 .sidebar-icon::before {
     content: '';
     position: absolute;
@@ -75,51 +169,18 @@
     border-color: transparent #333333 transparent transparent;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s ease;
     z-index: 2000;
+    /* 💡 ここにあった transition を削除しました。これにより、ホバー解除時に【一瞬でパッと消える】ようになります */
 }
 
-/* 🔥 マウスホバーした瞬間に不透明度を1にして、右に3pxだけふわっとスライドイン */
-.sidebar-icon:hover::after,
-.sidebar-icon:hover::before {
-    opacity: 1;
-}
+/* 🔥 マウスホバーした瞬間のスタイル指定 */
 .sidebar-icon:hover::after {
+    opacity: 1;
     transform: translateY(-50%) translateX(3px);
 }
 
-/* --- 既存の .sidebar の padding-top を 20px から 0 に変更します --- */
-.sidebar {
-    width: 60px;
-    background-color: #ffffff;
-    border-right: 1px solid #e5e7eb;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding-top: 0; /* 💡 0 に変更（ロゴエリアで高さを制御するため） */
-    gap: 20px;
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
-    z-index: 90;
-}
-
-/* ==========================================================================
-   💡 新しく追加するロゴエリアのスタイル
-   ========================================================================== */
-.sidebar-logo {
-    width: 100%;
-    height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-bottom: 1px solid #e5e7eb;
-    margin-bottom: 10px; 
-}
-
-.sidebar-logo img {
-    width: 50px;
-    height: 50px;
-    object-fit: contain;
+.sidebar-icon:hover::before {
+    opacity: 1;
+    /* 💡 ホバーした瞬間にだけアニメーション（ transition ）を適用させることで、出現するときはフワッと出ます */
+    transition: opacity 0.2s ease; 
 }

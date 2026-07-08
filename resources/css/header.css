@@ -2,7 +2,7 @@
 
 /* 上部：お知らせ・ユーザー情報ヘッダー（スクロール固定化） */
 .top-header {
-    height: 50px;
+    height: 40px;
     background-color: #ffffff;
     border-bottom: 1px solid #e5e7eb;
     display: flex;
@@ -15,7 +15,7 @@
     position: fixed;
     top: 0;
     right: 0;
-    left: 60px; /* 左側の固定サイドバーの幅(60px)を避けて配置 */
+    left: 40px;
     z-index: 80; /* サイドバー(z-index: 90)の少し下に重ねる */
 }
 
