@@ -1,4 +1,9 @@
 <div class="sidebar">
+    <!-- 追加：ロゴ -->
+    <div class="sidebar-logo">
+        <img src="{{ asset('favicon.ico') }}" alt="Logo">
+    </div>
+
     <a href="{{ route('dashboard') }}" 
    class="sidebar-icon {{ request()->routeIs('dashboard') ? 'active' : '' }}" 
    data-tooltip="打刻">🕒</a>
