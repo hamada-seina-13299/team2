@@ -40,6 +40,11 @@
                     </div>
                 </div>
             </form>
+
+            {{-- 出勤者数の表示 --}}
+            <div class="report-attendance-summary">
+                出勤者数：<span class="report-attendance-summary-num">{{ $attendingCount }}</span>人 / 対象：{{ $totalCount }}人
+            </div>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto w-full">
