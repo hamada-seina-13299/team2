@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Collection;
 class AttendanceController extends Controller
 {
     private const SUBMISSION_REQUEST_TYPE = '月次申請';
-    private const REQUEST_TYPES_WITHOUT_TIME = ['欠勤', '有給'];
+    private const REQUEST_TYPES_WITHOUT_TIME = ['欠勤', '有給', '半休'];
 
     public function index(Request $request)
     {

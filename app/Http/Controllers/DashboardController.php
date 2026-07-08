@@ -350,12 +350,12 @@ class DashboardController extends Controller
         return redirect()->route('dashboard')->with('success', '休憩を開始しました。');
     }
     
+    /**
+     * ⚠️ 未使用: 勤怠申請の実際の保存処理は AttendanceController@store（route: attendance.store）が行っています。
+     * このメソッドはルーティングされていないため実行されません。
+     */
     public function store(Request $request)
     {
-        // (省略) バリデーションや、AttendanceRequest::create などの保存処理のあと...
-
-        // 📝 既存の return redirect()->route('attendance.index') などの記述を以下に変更します
-        // back() にすることで、ダッシュボードから申請されたらダッシュボードに自動的に戻ります
         return redirect()->back()->with('success', '勤怠申請を送信しました。');
     }
 }

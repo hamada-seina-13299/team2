@@ -832,6 +832,25 @@ document.addEventListener('DOMContentLoaded', () => {
         typeSelect.addEventListener('change', toggleDashTimeField);
     }
 
+    // 📤 送信直前の処理：半休の場合、サーバー(AttendanceController)には
+    // halfday_type というカラム/フィールドが存在しないため、
+    // 「前半休/後半休」の情報をメモ欄の先頭に自動で付け足してから送信する。
+    // （Controller側の改修をせずに済ませるための対応）
+    const form = document.getElementById('dashboard-attendance-form');
+    if (form) {
+        form.addEventListener('submit', () => {
+            const halfdaySelect = document.getElementById('dash_halfday_type');
+            const memoInput = document.getElementById('dash_memo');
+
+            if (typeSelect && typeSelect.value === '半休' && halfdaySelect && memoInput) {
+                const label = `【${halfdaySelect.value}】`;
+                if (!memoInput.value.startsWith(label)) {
+                    memoInput.value = label + memoInput.value;
+                }
+            }
+        });
+    }
+
     // 🔁 対象日を変更した時、「打刻に合わせる」がONならその日の打刻で再同期する
     const dateInput = document.getElementById('dash_target_date');
     if (dateInput) {
@@ -949,5 +968,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 showSelectedFile();
             }
         });
+    }
+
+    // ⚠️ サーバー側バリデーションで弾かれてダッシュボードへ戻ってきた場合、
+    // モーダルは初期状態（非表示）に戻ってしまうため、エラー内容ごと自動で開き直す。
+    // （そうしないと「何も起きず閉じただけ」に見えてしまうため）
+    const reopenFlag = document.getElementById('dash-request-reopen-flag');
+    if (reopenFlag) {
+        // ※ openAttendanceRequestModal() 内の toggleDashTimeField() が
+        //    「種別が変わったらトグルは強制OFF」を実行してしまうため、
+        //    old() の値は開く"前"に読んでおく必要がある
+        const hiddenSyncField = document.getElementById('dash_sync_punch_field');
+        const shouldRestoreSync = !!hiddenSyncField && hiddenSyncField.value === '1';
+
+        openAttendanceRequestModal(reopenFlag.getAttribute('data-date') || '');
+
+        if (shouldRestoreSync) {
+            setDashSyncToggle(true); // 見た目のトグルもONへ戻す
+        }
     }
 });
