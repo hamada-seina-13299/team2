@@ -112,7 +112,11 @@ class ReportController extends Controller
 
         // 💡 出勤者数：ステータスが「出勤」または「遅刻」の人数（＝実際に打刻して出勤している人数）
         $attendingCount = $rows->whereIn('status', ['出勤', '遅刻'])->count();
-        $totalCount = $rows->count();
+
+        // 💡 対象人数：シフトが入っている（＝「休み」ではない）人数のみをカウントする。
+        //    修正前は $rows->count() で部署の全員をそのまま対象人数にしていたため、
+        //    その日シフトが無い（＝休み）人まで対象に含まれてしまっていた。
+        $totalCount = $rows->where('status', '!=', '休み')->count();
 
         return view('reports.attendance', [
             'date' => $date,
