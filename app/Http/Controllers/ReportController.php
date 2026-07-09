@@ -6,6 +6,7 @@ use App\Models\Shift;
 use App\Models\ShiftSubmission;
 use App\Models\User;
 use App\Models\Working;
+use App\Models\WorkingCorrection;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,8 +23,17 @@ class ReportController extends Controller
         // 💡 未承認（申請中）件数：シフト承認画面と同じ「同じ部署・admin=false」の条件で数える
         $pendingApprovalsCount = 0;
 
+        // 💡 未承認の勤怠申請（打刻修正）件数：同じく「同じ部署・admin=false」の条件で数える
+        $pendingWorkingCorrectionsCount = 0;
+
         if ($isAdmin) {
             $pendingApprovalsCount = ShiftSubmission::where('status', '申請中')
+                ->whereHas('user', function ($query) use ($user) {
+                    $query->where('dept', $user->dept)->where('admin', false);
+                })
+                ->count();
+
+            $pendingWorkingCorrectionsCount = WorkingCorrection::where('status', '申請中')
                 ->whereHas('user', function ($query) use ($user) {
                     $query->where('dept', $user->dept)->where('admin', false);
                 })
@@ -33,6 +43,7 @@ class ReportController extends Controller
         return view('reports.index', [
             'isAdmin' => $isAdmin,
             'pendingApprovalsCount' => $pendingApprovalsCount,
+            'pendingWorkingCorrectionsCount' => $pendingWorkingCorrectionsCount,
         ]);
     }
 

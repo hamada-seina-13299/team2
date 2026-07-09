@@ -32,7 +32,7 @@ class ShiftSeeder extends Seeder
      *   しています。
      * ・再実行しても正しく上書きされるよう、A・B・Cさんの今月〜来月分は一旦削除してから作り直します。
      */
-    public function run(): void
+public function run(): void
     {
         $masters = ShiftMaster::all();
 
@@ -42,7 +42,8 @@ class ShiftSeeder extends Seeder
         }
 
         // 1) 既存ユーザー全員：直近14日間のランダムデータ（重複はスキップ）
-        $allUsers = User::all();
+        // ★修正：user_id = 1 (田中太郎さん/管理者) は WorkingSeeder 側で制御するため、ここでは除外する
+        $allUsers = User::where('id', '!=', 1)->get(); 
 
         if ($allUsers->isEmpty()) {
             $this->command?->warn('users にレコードがありません。先にUserのシーダーを実行してください。');

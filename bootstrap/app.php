@@ -35,6 +35,10 @@ return Application::configure(basePath: dirname(__DIR__))
             // attendance.php を追加
             Route::middleware('web')
                 ->group(base_path('routes/attendance.php'));
+
+            // employee.php を追加
+            Route::middleware('web')
+                ->group(base_path('routes/employee.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {

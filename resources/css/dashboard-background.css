@@ -1,0 +1,440 @@
+@charset "UTF-8";
+
+/* ==========================================================================
+   ダッシュボード専用背景：機内窓からの一人称視点
+   ・時刻連動の空（朝焼け/昼/夕焼け/夜）
+   ・地上(state-ground) ⇔ 離陸(state-takeoff) ⇔ 巡航(state-flying) ⇔ 着陸(state-landing)
+   ・飛行機の窓枠フレーム
+   ・地上シーン：芝生・海・ターミナル・管制塔
+   ・巡航中：大きめの主翼（金属グラデーション＋翼端灯）
+   ========================================================================== */
+
+/* 背景レイヤーを透かすため、このページでは body の背景色を無効化する */
+body {
+    background-color: transparent;
+}
+
+#dash-sky-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1; /* body直下に置いた上でさらに最背面へ */
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* ==========================================================================
+   🪟 窓枠（飛行機の客席窓）
+   box-shadowのスプレッドを9999pxにすることで、丸みを帯びた窓の「外側」全体を
+   機内壁の色で塗りつぶすテクニック。窓の「中」だけに空/地上シーンが見える。
+   ========================================================================== */
+.dash-window-glass {
+    position: absolute;
+    inset: 4vh 4vw;
+    border-radius: 20% 20% 8% 8% / 34% 34% 10% 10%; /* 上がより丸い、飛行機の窓らしいシルエット */
+    overflow: hidden;
+    box-shadow: 0 0 0 9999px #dcd6ca; /* 機内壁（暖かみのあるライトグレー） */
+}
+
+/* 窓枠のリム（縁）：プラスチックの質感とへこみ感を出す */
+.dash-window-glass::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow:
+        inset 0 0 0 6px rgba(255, 255, 255, 0.55),
+        inset 0 0 22px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+}
+
+/* 傾き（バンク）演出のための内側レイヤー。窓の外周からはみ出す分は overflow:hidden で自動的に隠れる */
+.dash-sky-inner {
+    position: absolute;
+    inset: -14%;
+    background: linear-gradient(180deg, #1f6fd6 0%, #4f9be0 35%, #a9d8f5 72%, #eef6fc 100%); /* デフォルト＝昼 */
+    transition: background 2s ease;
+    transform: rotate(0deg) scale(1);
+    transform-origin: 50% 60%;
+}
+
+/* ------------ 時間帯ごとの空 ------------ */
+#dash-sky-bg.sky-dawn  .dash-sky-inner { background: linear-gradient(180deg, #ffd9a0 0%, #ff9a76 45%, #6f8fc7 100%); }
+#dash-sky-bg.sky-day   .dash-sky-inner { background: linear-gradient(180deg, #1f6fd6 0%, #4f9be0 35%, #a9d8f5 72%, #eef6fc 100%); }
+#dash-sky-bg.sky-dusk  .dash-sky-inner { background: linear-gradient(180deg, #2c3e6b 0%, #e8734a 55%, #ffd89e 100%); }
+#dash-sky-bg.sky-night .dash-sky-inner { background: linear-gradient(180deg, #05070f 0%, #131a33 55%, #232946 100%); }
+
+/* ------------ 雲（夜間以外、控えめな透明度） ------------ */
+.dash-cloud {
+    position: absolute;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8) 0%, rgba(240,244,248,0.5) 70%, rgba(200,210,220,0.2) 100%);
+    border-radius: 50% 60% 70% 40% / 60% 50% 40% 70%;
+    opacity: 0.3;
+    filter: blur(2px);
+    will-change: transform;
+}
+.dash-cloud::before,
+.dash-cloud::after {
+    content: '';
+    position: absolute;
+    background: inherit;
+    border-radius: 50%;
+}
+.dash-cloud-1 { width: 220px; height: 70px; top: 8%;  animation: dashCloudMove 55s linear infinite; }
+.dash-cloud-1::before { width: 110px; height: 85px; top: -35px; left: 30px; }
+.dash-cloud-1::after  { width: 90px;  height: 70px; top: -22px; right: 30px; }
+
+.dash-cloud-2 { width: 160px; height: 55px; top: 16%; opacity: 0.2; animation: dashCloudMove 75s linear infinite; animation-delay: -20s; }
+.dash-cloud-2::before { width: 80px; height: 65px; top: -28px; left: 22px; }
+.dash-cloud-2::after  { width: 65px; height: 55px; top: -18px; right: 22px; }
+
+@keyframes dashCloudMove {
+    0%   { transform: translate3d(-300px, 0, 0); }
+    100% { transform: translate3d(calc(100vw + 300px), 0, 0); }
+}
+
+#dash-sky-bg.sky-night .dash-cloud { display: none; }
+
+/* 巡航中は、下部の雲海(.dash-cloud-floor)に主役を譲るため、ちぎれ雲は非表示にする */
+#dash-sky-bg.state-flying .dash-cloud,
+#dash-sky-bg.state-takeoff .dash-cloud {
+    display: none;
+}
+
+/* ------------ 雲海（巡航中のみ：眼下に広がる厚い雲の絨毯） ------------ */
+.dash-cloud-floor {
+    position: absolute;
+    left: -10%;
+    right: -10%;
+    bottom: -10%;
+    height: 58%;
+    opacity: 0;
+    transform: translateY(50px);
+    transition: opacity 1.6s ease, transform 1.6s ease;
+    background:
+        radial-gradient(ellipse 55% 42% at 15% 28%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 70%),
+        radial-gradient(ellipse 65% 46% at 48% 40%, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0) 72%),
+        radial-gradient(ellipse 50% 40% at 80% 22%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 68%),
+        radial-gradient(ellipse 75% 48% at 35% 72%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 65%),
+        radial-gradient(ellipse 60% 40% at 90% 68%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 66%),
+        linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 32%, rgba(238,244,250,0.96) 100%);
+    filter: blur(1.5px);
+}
+
+/* 夜は雲海も見せない（星空を優先） */
+#dash-sky-bg.sky-night .dash-cloud-floor {
+    display: none;
+}
+
+/* ------------ 星（夜のみ） ------------ */
+.dash-star {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: #ffffff;
+    border-radius: 50%;
+    opacity: 0;
+    animation: dashTwinkle 3s ease-in-out infinite alternate;
+}
+#dash-sky-bg:not(.sky-night) .dash-star { display: none; }
+
+@keyframes dashTwinkle {
+    from { opacity: 0.15; transform: scale(1); }
+    to   { opacity: 0.85; transform: scale(1.3); }
+}
+
+/* ==========================================================================
+   🌍 地上シーン（芝生・海・滑走路・ターミナル・管制塔）をまとめて1つのブロックに
+   ・地上/着陸時にまとめて表示、巡航時にまとめて非表示にする
+   ========================================================================== */
+.dash-ground-scene {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -10%;
+    height: 52%;
+    opacity: 0;
+    transform: translateY(60px);
+    transition: opacity 1.4s ease, transform 1.4s ease;
+}
+
+/* 芝生（地面のベース） */
+.dash-ground {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, #74a55a 0%, #547f3f 55%, #3c5f2d 100%);
+}
+
+/* 海（奥・右側にちらっと覗かせて空港が海沿いにある雰囲気を出す） */
+.dash-ground::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 42%;
+    height: 46%;
+    background: linear-gradient(180deg, #2e6f8e 0%, #1c4f68 100%);
+    clip-path: polygon(100% 0%, 100% 100%, 35% 100%, 0% 22%);
+    opacity: 0.92;
+}
+
+/* 滑走路：正面ではなく、斜めに横切る「側面から見た」構図にする */
+.dash-runway {
+    position: absolute;
+    left: -15%;
+    bottom: 10%;
+    width: 140%;
+    height: 20%;
+    background: #4b5563;
+    transform: rotate(-7deg);
+    transform-origin: left bottom;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
+}
+.dash-runway::before {
+    /* 横向きのセンターライン（破線） */
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    transform: translateY(-50%);
+    background: repeating-linear-gradient(
+        to right,
+        #f3f4f6 0px, #f3f4f6 26px,
+        transparent 26px, transparent 54px
+    );
+    opacity: 0.85;
+}
+
+/* ターミナルビル */
+.dash-terminal {
+    position: absolute;
+    left: 6%;
+    bottom: 34%;
+    width: 26%;
+    max-width: 150px;
+    height: 15%;
+    min-height: 40px;
+    background: linear-gradient(180deg, #d7dce1 0%, #a7b0ba 100%);
+    box-shadow: 0 -4px 0 0 #8b95a1; /* 屋根の縁 */
+}
+.dash-terminal::before {
+    /* 窓の連続模様 */
+    content: '';
+    position: absolute;
+    top: 28%;
+    left: 6%;
+    right: 6%;
+    bottom: 14%;
+    background-image: repeating-linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0.75) 0px, rgba(255, 255, 255, 0.75) 10%,
+        transparent 10%, transparent 18%
+    );
+}
+
+/* 管制塔 */
+.dash-tower {
+    position: absolute;
+    left: calc(6% + 26% + 3%);
+    bottom: 34%;
+    width: 3%;
+    min-width: 12px;
+    height: 22%;
+    min-height: 60px;
+    background: linear-gradient(180deg, #c3cad2 0%, #8b95a1 100%);
+}
+.dash-tower::after {
+    /* 管制塔の頭部 */
+    content: '';
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    width: 220%;
+    max-width: 36px;
+    height: 18px;
+    transform: translateX(-50%);
+    background: #5c6773;
+    border-radius: 6px 6px 2px 2px;
+}
+
+/* ==========================================================================
+   ✈️ 主翼（出勤中＝巡航中のみ表示）
+   ・大きめサイズ＋金属的なグラデーション＋ハイライト＋翼端灯で「翼」と分かりやすく
+   ========================================================================== */
+.dash-wing {
+    position: absolute;
+    right: -6%;
+    bottom: -10%;
+    width: 92%;
+    height: 58%;
+    background: linear-gradient(
+        100deg,
+        #ffffff 0%,
+        #f4f6f8 22%,
+        #e3e7eb 45%,
+        #cdd4da 68%,
+        #aab3bc 100%
+    );
+    clip-path: polygon(100% 0%, 100% 100%, 0% 100%, 46% 22%);
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 1.4s ease, transform 1.4s ease;
+    filter: drop-shadow(0 -6px 14px rgba(0, 0, 0, 0.18));
+}
+
+/* 金属の反射ハイライト（斜めの光の筋） */
+.dash-wing::before {
+    content: '';
+    position: absolute;
+    top: 10%;
+    left: 22%;
+    width: 52%;
+    height: 9%;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0));
+    filter: blur(4px);
+    transform: rotate(-4deg);
+}
+
+/* ウィングレット（翼端の跳ね上がり部分。参考画像のような濃紺で、翼だと一目で分かるアクセントに） */
+.dash-wing::after {
+    content: '';
+    position: absolute;
+    top: -3%;
+    right: 3%;
+    width: 15%;
+    height: 24%;
+    background: linear-gradient(160deg, #2a4f7c 0%, #16294a 100%);
+    clip-path: polygon(0% 100%, 100% 55%, 55% 0%, 0% 42%);
+    transform: rotate(6deg);
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
+}
+
+/* ==========================================================================
+   状態：地上（未出勤 / 退勤後）
+   ========================================================================== */
+#dash-sky-bg.state-ground .dash-sky-inner {
+    transform: rotate(0deg) scale(1);
+}
+#dash-sky-bg.state-ground .dash-ground-scene {
+    opacity: 1;
+    transform: translateY(0);
+}
+#dash-sky-bg.state-ground .dash-wing {
+    opacity: 0;
+    transform: translateY(30px);
+}
+#dash-sky-bg.state-ground .dash-cloud-floor {
+    opacity: 0;
+    transform: translateY(50px);
+}
+
+/* ==========================================================================
+   状態：巡航中（出勤中）：わずかにバンクした角度を維持
+   ========================================================================== */
+#dash-sky-bg.state-flying .dash-sky-inner {
+    transform: rotate(-3deg) scale(1.1);
+}
+#dash-sky-bg.state-flying .dash-ground-scene {
+    opacity: 0;
+    transform: translateY(120px);
+}
+#dash-sky-bg.state-flying .dash-wing {
+    opacity: 1;
+    transform: translateY(0);
+}
+#dash-sky-bg.state-flying .dash-cloud-floor {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ==========================================================================
+   トランジション：離陸（出勤の瞬間だけ再生）
+   ========================================================================== */
+#dash-sky-bg.state-takeoff .dash-sky-inner {
+    animation: dashTiltUp 2.8s ease-in-out forwards;
+}
+@keyframes dashTiltUp {
+    0%   { transform: rotate(0deg)   scale(1); }
+    60%  { transform: rotate(-6deg)  scale(1.14); }
+    100% { transform: rotate(-3deg)  scale(1.1); }
+}
+#dash-sky-bg.state-takeoff .dash-ground-scene {
+    opacity: 1;
+    transform: translateY(0);
+    animation: dashGroundAway 2.4s ease-in forwards;
+}
+@keyframes dashGroundAway {
+    0%   { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(150px); }
+}
+#dash-sky-bg.state-takeoff .dash-wing {
+    opacity: 0;
+    transform: translateY(30px);
+    animation: dashWingAppear 2.4s ease-out forwards;
+}
+@keyframes dashWingAppear {
+    0%   { opacity: 0; transform: translateY(30px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+#dash-sky-bg.state-takeoff .dash-cloud-floor {
+    opacity: 0;
+    transform: translateY(50px);
+    animation: dashCloudFloorAppear 2.4s ease-out forwards;
+}
+@keyframes dashCloudFloorAppear {
+    0%   { opacity: 0; transform: translateY(50px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   トランジション：着陸（退勤の瞬間だけ再生）
+   ========================================================================== */
+#dash-sky-bg.state-landing .dash-sky-inner {
+    animation: dashTiltDown 2.8s ease-in-out forwards;
+}
+@keyframes dashTiltDown {
+    0%   { transform: rotate(-3deg) scale(1.1); }
+    60%  { transform: rotate(4deg)  scale(1.02); }
+    100% { transform: rotate(0deg)  scale(1); }
+}
+#dash-sky-bg.state-landing .dash-ground-scene {
+    opacity: 0;
+    transform: translateY(150px);
+    animation: dashGroundAppear 2.4s ease-out forwards;
+}
+@keyframes dashGroundAppear {
+    0%   { opacity: 0; transform: translateY(150px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+#dash-sky-bg.state-landing .dash-wing {
+    opacity: 1;
+    transform: translateY(0);
+    animation: dashWingAway 2.4s ease-in forwards;
+}
+@keyframes dashWingAway {
+    0%   { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(30px); }
+}
+#dash-sky-bg.state-landing .dash-cloud-floor {
+    opacity: 1;
+    transform: translateY(0);
+    animation: dashCloudFloorAway 2.4s ease-in forwards;
+}
+@keyframes dashCloudFloorAway {
+    0%   { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(50px); }
+}
+
+/* ------------ アクセシビリティ：モーション低減設定を尊重 ------------ */
+@media (prefers-reduced-motion: reduce) {
+    .dash-sky-inner,
+    .dash-cloud,
+    .dash-star,
+    .dash-ground-scene,
+    .dash-cloud-floor,
+    .dash-wing {
+        animation: none !important;
+        transition: none !important;
+    }
+}
