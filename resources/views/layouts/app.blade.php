@@ -8,7 +8,8 @@
         'resources/css/dashboard.css', 
         'resources/css/sidebar.css', 
         'resources/css/header.css', 
-        'resources/js/dashboard.js'
+        'resources/js/dashboard.js',
+        'resources/js/header.js'
     ])
     
     {{-- 子画面（list.blade.php）からプッシュされた Tailwind CSS や shift.css がここに挿入されます --}}
@@ -19,7 +20,7 @@
         /* Tailwind のリセットCSSによる wrapper や main-wrapper の影響を抑える記述 */
         .wrapper {
             display: flex;
-            min-h: 100vh;
+            min-height: 100vh;
             width: 100%;
         }
         .main-wrapper {
@@ -32,9 +33,68 @@
             width: 100%;
             flex: 1;
         }
+
+        /* 🌀 画面遷移中のローディングオーバーレイ */
+        #dash-loading-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            opacity: 1;
+            transition: opacity 0.25s ease;
+        }
+        #dash-loading-overlay.is-hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        #dash-loading-overlay img {
+            width: 140px;
+            height: 140px;
+            animation: dash-loading-spin 2s linear infinite;
+        }
+        @keyframes dash-loading-spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
+    {{-- 🌅 時刻連動の空＋出退勤の離着陸演出用レイヤー
+         ※ body直下（.wrapperの外）に置くのが重要：ネストして置くと、
+            position指定の無い通常のカード要素より前面に出てしまい、
+            コンテンツが見えなくなってしまうため。
+            スタイル自体はダッシュボード画面でのみ読み込まれるので、
+            他画面では中身のない透明なdivとして存在するだけで実害はありません。 --}}
+    <div id="dash-sky-bg" class="{{ (isset($latestOpenAttendance) && $latestOpenAttendance) ? 'state-flying' : 'state-ground' }}">
+        <div class="dash-window-glass">
+            <div class="dash-sky-inner">
+                <div class="dash-ground-scene">
+                    <div class="dash-ground"></div>
+                    <div class="dash-runway"></div>
+                    <div class="dash-terminal"></div>
+                    <div class="dash-tower"></div>
+                </div>
+                <div class="dash-cloud-floor"></div>
+                <div class="dash-wing"></div>
+            </div>
+        </div>
+    </div>
+
+    {{-- 出勤/退勤の直後だけ、対応する離着陸アニメーションを1回再生するためのトリガー --}}
+    @if (session('success') === '出勤しました。')
+    <div id="dash-anim-trigger" data-anim="takeoff" style="display:none;"></div>
+    @elseif (session('success') === '退勤しました。' || session('warning') === '休憩なしの退勤となりました。')
+    <div id="dash-anim-trigger" data-anim="landing" style="display:none;"></div>
+    @endif
+
+    {{-- 🌀 画面遷移中のローディングオーバーレイ（public/load.png を使用） --}}
+    <div id="dash-loading-overlay">
+        <img src="{{ asset('load.png') }}" alt="読み込み中">
+    </div>
+
     <div class="wrapper">
         {{-- サイドバーの読み込み --}}
         @include('layouts/sidebar')
@@ -52,5 +112,45 @@
 
     {{-- 子画面（list.blade.php）からプッシュされた shift.js がここに挿入されます --}}
     @stack('scripts')
+
+    <script>
+        (function () {
+            var overlay = document.getElementById('dash-loading-overlay');
+            if (!overlay) return;
+
+            function hideOverlay() {
+                overlay.classList.add('is-hidden');
+            }
+            function showOverlay() {
+                overlay.classList.remove('is-hidden');
+            }
+
+            // ページの読み込みが完了したら消す
+            window.addEventListener('load', hideOverlay);
+
+            // ブラウザの「戻る/進む」でキャッシュから復元された場合も確実に消す
+            window.addEventListener('pageshow', function (e) {
+                if (e.persisted) hideOverlay();
+            });
+
+            // フォーム送信で別ページへ遷移する瞬間に再表示する
+            document.addEventListener('submit', function (e) {
+                if (!e.defaultPrevented) showOverlay();
+            }, true);
+
+            // 通常のリンククリックで別ページへ遷移する瞬間に再表示する
+            document.addEventListener('click', function (e) {
+                var link = e.target.closest('a[href]');
+                if (!link) return;
+
+                var href = link.getAttribute('href');
+                // 新規タブ・アンカーリンク・javascript:リンクなどは対象外
+                if (link.target === '_blank' || !href || href.startsWith('#') || href.startsWith('javascript:')) {
+                    return;
+                }
+                showOverlay();
+            });
+        })();
+    </script>
 </body>
 </html>

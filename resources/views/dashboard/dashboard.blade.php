@@ -464,3 +464,11 @@ $groupedHistory = $history->groupBy('punch_date');
 </div>
 
 @endsection
+
+@push('styles')
+    @vite(['resources/css/dashboard-background.css'])
+@endpush
+
+@push('scripts')
+    @vite(['resources/js/dashboard-background.js'])
+@endpush
