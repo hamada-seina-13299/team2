@@ -42,6 +42,22 @@
 
 <body class="weather-sunny">
 
+    <!-- 星空 -->
+    <div class="starry_sky universe"></div>
+
+    <div class="stage-objects">
+        <div class="cloud cloud-back"></div>
+    </div>
+
+    <!-- 雨 -->
+    <div class="rain">
+        <div></div><div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div><div></div>
+    </div>
+
     <div class="stage-objects" id="airplane-stage">
         <div class="cloud cloud-back"></div>
         <div class="cloud cloud-middle"></div>

@@ -3,96 +3,30 @@
 @section('title', '社員検索 | 勤怠管理システム')
 
 @push('styles')
-    <script src="https://cdn.tailwindcss.com"></script>
     @vite(['resources/css/employee-search.css'])
-    <style>
-        /* 美しいミントグリーンのベース */
-        .th-card-container {
-            padding: 0.5rem !important;
-            background-color: #e6fbf7 !important;
-            border: 1px solid #c2f1e7;
-            position: relative;
-        }
-
-        /* 持ち運びできる各項目の独立カード */
-        .th-card {
-            background-color: #a7ebd9;
-            color: #2c4a43;
-            font-weight: 600;
-            border-radius: 0.375rem;
-            padding: 0.5rem 1rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.375rem;
-            border: 1px solid #82dec5;
-            cursor: grab;
-            user-select: none;
-            transition: background-color 0.2s, box-shadow 0.2s;
-        }
-
-        /* 社員名（一番左固定） */
-        .th-card.fixed-col {
-            background-color: #bbf3e6;
-            border: 1px solid #9cecd9;
-            cursor: pointer;
-        }
-
-        /* ドラッグ中：上下は完全に固定され、左右だけに「ぬるぬる」追従するスタイル */
-        .th-card.is-dragging {
-            position: fixed !important;
-            z-index: 9999;
-            pointer-events: none; /* 下の要素のイベントを遮らない */
-            transform: scale(1.02);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
-            background-color: #82dec5;
-            border-color: #4ed2b1;
-        }
-
-        /* 列が入れ替わる時のスライドアニメーション */
-        .employee-search-table th,
-        .employee-search-table td {
-            transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.2s;
-        }
-
-        /* ドラッグ中に元の場所を半透明にする影 */
-        .th-card.drag-placeholder {
-            opacity: 0.15;
-            background-color: #a7ebd9;
-            border: 1px dashed #2c4a43;
-        }
-        
-        .sort-arrow {
-            font-size: 0.9rem;
-            display: inline-block;
-            line-height: 1;
-            font-weight: bold;
-        }
-    </style>
 @endpush
 
 @section('content')
-    <div class="w-full p-6 bg-gray-50 min-h-screen rounded-xl">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-            <div class="flex items-center justify-between mb-4">
-                <h1 class="text-lg font-bold text-gray-800">社員検索</h1>
+    <div class="employee-search-container">
+        <div class="employee-search-card">
+            <div class="employee-search-header">
+                <h1 class="employee-search-title">社員検索</h1>
             </div>
 
             <form method="GET" action="{{ route('employee.search') }}" class="employee-search-filter-form" id="searchForm">
                 {{-- ソート状態の隠しフィールド --}}
-                <input type="hidden" name="sort_by" value="{{ $sortBy }}">
-                <input type="hidden" name="order" value="{{ $order }}">
+                <input type="hidden" name="sort_by" value="{{ $sortBy ?? 'name' }}">
+                <input type="hidden" name="order" value="{{ $order ?? 'asc' }}">
 
                 <div>
                     <label class="employee-search-filter-label">社員名/メールアドレス</label>
-                    <input type="text" name="keyword" value="{{ $keyword }}" placeholder="社員名、メールで検索"
+                    <input type="text" name="keyword" value="{{ $keyword ?? '' }}" placeholder="社員名、メールで検索"
                         class="employee-search-filter-input">
                 </div>
 
                 <div>
                     <label class="employee-search-filter-label">社員ID</label>
-                    <input type="text" name="employee_id" value="{{ $employeeId }}" placeholder="カンマ(,)で複数検索可能"
+                    <input type="text" name="employee_id" value="{{ $employeeId ?? '' }}" placeholder="カンマ(,)で複数検索可能"
                         class="employee-search-filter-input">
                 </div>
 
@@ -101,7 +35,7 @@
                     <select name="dept" class="employee-search-filter-select">
                         <option value="">すべて</option>
                         @foreach($depts as $d)
-                            <option value="{{ $d }}" {{ $dept == $d ? 'selected' : '' }}>{{ $d }}</option>
+                            <option value="{{ $d }}" {{ ($dept ?? '') == $d ? 'selected' : '' }}>{{ $d }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -117,7 +51,7 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto w-full">
+        <div class="employee-search-table-wrapper">
             <table class="employee-search-table" id="employeeTable">
                 <thead>
                     <tr id="headerRow">
@@ -125,40 +59,40 @@
                         <th class="employee-search-th th-card-container" data-col="name">
                             <div class="th-card fixed-col" onclick="toggleSort('name')">
                                 社員名/氏名
-                                @if($sortBy === 'name')
-                                    <span class="sort-arrow">{{ $order === 'desc' ? '▼' : '▲' }}</span>
+                                @if(($sortBy ?? 'name') === 'name')
+                                    <span class="sort-arrow">{{ ($order ?? 'asc') === 'desc' ? '▼' : '▲' }}</span>
                                 @endif
                             </div>
                         </th>
                         <th class="employee-search-th th-card-container" data-col="id">
                             <div class="th-card" onclick="toggleSort('id')">
                                 社員ID
-                                @if($sortBy === 'id')
-                                    <span class="sort-arrow">{{ $order === 'desc' ? '▼' : '▲' }}</span>
+                                @if(($sortBy ?? '') === 'id')
+                                    <span class="sort-arrow">{{ (strtolower($order ?? 'asc')) === 'desc' ? '▼' : '▲' }}</span>
                                 @endif
                             </div>
                         </th>
                         <th class="employee-search-th th-card-container" data-col="email">
                             <div class="th-card" onclick="toggleSort('email')">
                                 メールアドレス
-                                @if($sortBy === 'email')
-                                    <span class="sort-arrow">{{ $order === 'desc' ? '▼' : '▲' }}</span>
+                                @if(($sortBy ?? '') === 'email')
+                                    <span class="sort-arrow">{{ ($order ?? '') === 'desc' ? '▼' : '▲' }}</span>
                                 @endif
                             </div>
                         </th>
                         <th class="employee-search-th th-card-container" data-col="dept">
                             <div class="th-card" onclick="toggleSort('dept')">
                                 部門
-                                @if($sortBy === 'dept')
-                                    <span class="sort-arrow">{{ $order === 'desc' ? '▼' : '▲' }}</span>
+                                @if(($sortBy ?? '') === 'dept')
+                                    <span class="sort-arrow">{{ ($order ?? '') === 'desc' ? '▼' : '▲' }}</span>
                                 @endif
                             </div>
                         </th>
-                        <th class="employee-search-th th-card-container" data-col="date">
+                        <th class="employee-search-th th-card-container" data-col="entering_company_date">
                             <div class="th-card" onclick="toggleSort('entering_company_date')">
                                 入社日
-                                @if($sortBy === 'entering_company_date')
-                                    <span class="sort-arrow">{{ $order === 'desc' ? '▼' : '▲' }}</span>
+                                @if(($sortBy ?? '') === 'entering_company_date')
+                                    <span class="sort-arrow">{{ ($order ?? '') === 'desc' ? '▼' : '▲' }}</span>
                                 @endif
                             </div>
                         </th>
@@ -171,7 +105,7 @@
                             <td class="employee-search-td" data-cell="id">{{ $employee->id }}</td>
                             <td class="employee-search-td employee-search-td-truncate" data-cell="email">{{ $employee->email }}</td>
                             <td class="employee-search-td" data-cell="dept">{{ $employee->dept ?? '-' }}</td>
-                            <td class="employee-search-td" data-cell="date">
+                            <td class="employee-search-td" data-cell="entering_company_date">
                                 {{ $employee->entering_company_date ? \Illuminate\Support\Carbon::parse($employee->entering_company_date)->format('Y-m-d') : '-' }}
                             </td>
                         </tr>
@@ -196,7 +130,7 @@
         function toggleSort(column) {
             const form = document.getElementById('searchForm');
             const currentSort = form.querySelector('input[name="sort_by"]').value;
-            const currentOrder = form.querySelector('input[name="order"]').value;
+            const currentOrder = (form.querySelector('input[name="order"]').value || 'asc').toLowerCase();;
             
             let newOrder = 'desc'; // 別の項目を押したときはまず ▼(desc) から始まる
             if (currentSort === column) {
@@ -288,9 +222,8 @@
                     const currentLeft = originalLeft + deltaX;
                     activeCard.style.left = currentLeft + 'px';
 
-                    // 💡 感度向上：マウス位置ではなく、動かしているカード自体の中心X座標で判定する
+                    // 💡 cardRect をここで正しく定義
                     const cardRect = activeCard.getBoundingClientRect();
-                    const cardCenterX = cardRect.left + (cardRect.width / 2);
 
                     // 現在の並びを配列化
                     const thsArray = Array.from(headerRow.children);
@@ -303,7 +236,6 @@
                     if (deltaX < 0 && currentIndex > 1) {
                         const leftNeighbor = thsArray[currentIndex - 1];
                         const neighborRect = leftNeighbor.getBoundingClientRect();
-                        // 隣のカードの右端を少しでも超えたら入れ替える
                         if (cardRect.left < neighborRect.left + (neighborRect.width * 0.7)) {
                             targetIndex = currentIndex - 1;
                         }
@@ -312,7 +244,6 @@
                     else if (deltaX > 0 && currentIndex < thsArray.length - 1) {
                         const rightNeighbor = thsArray[currentIndex + 1];
                         const neighborRect = rightNeighbor.getBoundingClientRect();
-                        // 隣のカードの左端を少しでも超えたら入れ替える
                         if (cardRect.right > neighborRect.left + (neighborRect.width * 0.3)) {
                             targetIndex = currentIndex + 1;
                         }
