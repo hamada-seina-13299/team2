@@ -24,7 +24,7 @@
                             @csrf
                             <input type="hidden" name="year" value="{{ $year }}">
                             <input type="hidden" name="month" value="{{ $month }}">
-                            <button type="submit" class="floating-bulk-btn floating-bulk-btn-green">
+                            <button type="submit" class="floating-bulk-btn floating-bulk-btn-green btn-invert-withdraw">
                                 📮 申請中（取り下げる）
                             </button>
                         </form>
@@ -34,7 +34,7 @@
                             @csrf
                             <input type="hidden" name="year" value="{{ $year }}">
                             <input type="hidden" name="month" value="{{ $month }}">
-                            <button type="submit" class="floating-bulk-btn floating-bulk-btn-green">
+                            <button type="submit" class="floating-bulk-btn floating-bulk-btn-green {{ $submissionStatus === '差し戻し' ? 'btn-invert-resubmit' : '' }}"">
                                 @if($submissionStatus === '差し戻し')
                                     🔁 差し戻されました（再提出する）
                                 @else
@@ -244,9 +244,7 @@
 
                     <div id="modalTargetDateGroup" class="form-control-group">
                         <label class="form-field-label">対象日 <span class="required-star">*</span></label>
-                        <div class="date-input-wrapper">
-                            <input type="date" id="modalTargetDate" name="target_date" value="{{ old('target_date') }}" class="form-input-date">
-                        </div>
+                        <input class="form-input-date" type="date" id="modalTargetDate" name="target_date" value="{{ old('target_date') }}">
                     </div>
 
                     <div id="bulkDateMessageGroup" class="hidden bulk-msg-banner">

@@ -63,7 +63,7 @@
     margin-bottom: 15px;
 }
 
-/* ラベルスタイル */
+/* ラベルスタイル（重複を統合） */
 .form-field-label,
 .form-field-label-sub {
     display: block;
@@ -104,72 +104,68 @@
 }
 
 /* ==========================================================================
-   対象日入力フォーム
+   対象日入力フォーム（Tailwind CSSの再現）
    ========================================================================== */
-
-/* カレンダーアイコンとinputを包むラッパーを、親要素の幅一杯に広げる */
-.date-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    width: 100%; 
-    box-sizing: border-box;
-}
-
-/* 対象日入力枠（#modalTargetDate）の個別カスタムスタイル */
-#modalTargetDate.form-input-date {
-    width: 100%;         
-    height: 3rem;
-    padding: 0.5rem 1rem 0.5rem 2.75rem; 
-    font-size: 1rem;
-    font-weight: 550;
-    color: #0f172a;     
-    background-color: #ffffff;
+.form-input-date {
+    /* 1. ブラウザ特有のデフォルトデザインをリセット */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
     
-    border: 1.5px solid #cbd5e1; 
-    border-radius: 0.75rem;      
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05); 
+    /* 2. サイズと形状 (w-full rounded-lg p-2.5 text-sm) */
+    width: 100%;
+    padding: 0.625rem 0.75rem; /* p-2.5 (10px 12px相当) */
+    font-size: 0.875rem;       /* text-sm */
+    border-radius: 0.5rem;     /* rounded-lg */
     box-sizing: border-box;
-    font-family: inherit;
+    
+    /* 3. 配色とシャドウ (border-gray-300 bg-white text-gray-800 shadow-sm) */
+    border: 1px solid #d1d5db; /* border-gray-300 (グレーの枠組み) */
+    background-color: #ffffff; /* bg-white */
+    color: #1f2937;            /* text-gray-800 */
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+    
+    /* 4. アニメーションとリセット (transition-all outline-none) */
     outline: none;
-    transition: all 0.2s ease;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* マウスホバー時 */
-#modalTargetDate.form-input-date:hover {
-    border-color: #94a3b8; 
-    background-color: #f8fafc;
+/* 5. フォーカス時の演出 (focus:border-blue-500 focus:ring-4 focus:ring-blue-100) */
+.form-input-date:focus {
+    border-color: #3b82f6; /* focus:border-blue-500 */
+    /* キレイな青いボカシ（外枠の光）を再現 */
+    box-shadow: 0 0 0 4px rgba(219, 234, 254, 0.75); /* focus:ring-4 focus:ring-blue-100 */
 }
 
-/* 入力枠にフォーカス（クリック）が当たった時 */
-#modalTargetDate.form-input-date:focus {
-    border-color: #64748b; 
-    background-color: #ffffff;
-    box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.15), 0 2px 4px rgba(0, 0, 0, 0.05);
+/* カレンダーアイコンを押しやすくする調整 */
+.form-input-date::-webkit-calendar-picker-indicator {
+    cursor: pointer;
 }
 
 /* ==========================================================================
    4. 入力フォーム各種（統一デザイン）
    ========================================================================== */
 .form-input-text,
-.form-input-date,
 .form-input-time,
 .form-select-custom {
+    -webkit-appearance: none !important; /* ブラウザ標準のデザインを強制リセット */
+    -moz-appearance: none !important;
+    appearance: none !important;
+
     width: 100%;
     padding: 12px 14px; 
     box-sizing: border-box;
-    border: 1.5px solid #d1d5db;
+    border: 1.5px solid #d1d5db !important;
     border-radius: 6px;
     font-size: 1rem;
     transition: all 0.2s ease;
-    background-color: #f8fafc;
+    background-color: #f8fafc !important;
     color: #1a2a4a;
     font-family: inherit;
 }
 
 /* フォーカス時 */
 .form-input-text:focus,
-.form-input-date:focus,
 .form-input-time:focus,
 .form-select-custom:focus {
     border-color: #0077c2;
@@ -301,7 +297,7 @@
     background-color: rgba(0, 119, 194, 0.02);
 }
 
-/* マスタ選択時のJavaScript連携用（必要に応じてクラスを切り替えてください） */
+/* マスタ選択時のJavaScript連携用 */
 .master-option-card.selected {
     border-color: #0077c2;
     background-color: rgba(0, 119, 194, 0.08);
