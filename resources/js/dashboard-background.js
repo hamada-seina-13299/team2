@@ -12,19 +12,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---------------------------------------------------------------
     // 時刻連動の空：現在時刻から朝焼け/昼/夕焼け/夜のクラスを付け替える
+    // ただし、ヘッダーの「オプション」でユーザーが固定の時間帯を選んでいる場合はそれを優先する
     // ---------------------------------------------------------------
-    function applySkyTimeClass() {
-        const hour = new Date().getHours();
-        let timeClass = 'sky-day';
+    const SKY_OVERRIDE_KEY = 'dashSkyOverride';
+    const VALID_SKY_CLASSES = ['sky-dawn', 'sky-day', 'sky-dusk', 'sky-night'];
 
-        if (hour >= 5 && hour < 8) {
-            timeClass = 'sky-dawn';
-        } else if (hour >= 8 && hour < 16) {
-            timeClass = 'sky-day';
-        } else if (hour >= 16 && hour < 19) {
-            timeClass = 'sky-dusk';
+    function applySkyTimeClass() {
+        const override = localStorage.getItem(SKY_OVERRIDE_KEY);
+        let timeClass;
+
+        if (override && VALID_SKY_CLASSES.includes(override)) {
+            // ユーザーが固定した時間帯（モーニング/アフタヌーン/イブニング/ナイトフライト）
+            timeClass = override;
         } else {
-            timeClass = 'sky-night';
+            // 「自動」：現在時刻から判定
+            const hour = new Date().getHours();
+            if (hour >= 5 && hour < 8) {
+                timeClass = 'sky-dawn';
+            } else if (hour >= 8 && hour < 16) {
+                timeClass = 'sky-day';
+            } else if (hour >= 16 && hour < 19) {
+                timeClass = 'sky-dusk';
+            } else {
+                timeClass = 'sky-night';
+            }
         }
 
         sky.classList.remove('sky-dawn', 'sky-day', 'sky-dusk', 'sky-night');
@@ -34,6 +45,9 @@ document.addEventListener('DOMContentLoaded', () => {
     applySkyTimeClass();
     // 1分ごとに再判定し、開きっぱなしのダッシュボードでも時間帯の切り替わりに追従させる
     setInterval(applySkyTimeClass, 60 * 1000);
+
+    // ヘッダーの「オプション」モーダルで設定を保存した瞬間、ページ遷移無しで即座に反映する
+    window.addEventListener('dash-sky-preference-changed', applySkyTimeClass);
 
     // 雲・星を初期生成（1回だけ、.dash-sky-inner の中に追加して一緒に傾くようにする）
     if (inner && !inner.querySelector('.dash-cloud')) {

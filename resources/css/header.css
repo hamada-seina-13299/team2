@@ -232,3 +232,53 @@
 .modal-action-btn:hover {
     background-color: #1eb3b1;
 }
+
+/* コンテンツが短いモーダル用：固定の75vhをやめて内容に合わせた高さにする */
+.modal-window--auto {
+    height: auto;
+    max-height: 80vh;
+}
+
+/* ==========================================================================
+   🌤️ 背景の時間帯設定：ラジオボタンリスト
+   ========================================================================== */
+.sky-option-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.sky-option-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.sky-option-item:hover {
+    border-color: #26d0ce;
+    background-color: #f4fdfd;
+}
+
+.sky-option-item:has(input:checked) {
+    border-color: #26d0ce;
+    background-color: #e6f7f7;
+}
+
+.sky-option-item input[type="radio"] {
+    accent-color: #26d0ce;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.sky-option-label {
+    font-size: 14px;
+    font-weight: bold;
+    color: #333333;
+}
