@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', '勤怠申請承認 | 勤怠管理システム')
+@section('title', '打刻修正申請承認 | 勤怠管理システム')
 
 @push('styles')
     <script src="https://cdn.tailwindcss.com"></script>
@@ -10,7 +10,7 @@
     <div class="w-full p-6 bg-gray-50 min-h-screen rounded-xl">
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
             <div class="flex items-center justify-between mb-1">
-                <h1 class="text-lg font-bold text-gray-800">勤怠申請承認</h1>
+                <h1 class="text-lg font-bold text-gray-800">打刻修正申請承認</h1>
                 <a href="{{ route('report.index') }}" class="text-sm text-blue-600 hover:underline">← 集計レポートへ戻る</a>
             </div>
             <p class="text-sm text-gray-500">部下から提出された打刻修正申請を確認し、承認・却下してください。</p>

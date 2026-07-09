@@ -149,7 +149,7 @@
                             </td>
                             <td class="cell-leaving">
                                 @if($day['shift'])
-                                    <span class="leaving-text">{{ date('H:i', strtotime($displayLeaving)) }}</span>
+                                    <span class="leaving-text">{{ \App\Support\ShiftTimeHelper::formatLeaving($displayAttendance, $displayLeaving) }}</span>
                                     <input type="time" class="leaving-input hidden form-input-time-inline" value="{{ date('H:i', strtotime($displayLeaving)) }}">
                                 @else
                                     --:--
@@ -176,12 +176,20 @@
                             </td>
                             <td class="cell-edit">
                                 @if($day['shift'])
-                                    <button type="button"
-                                        class="btn-edit edit-shift-btn"
-                                        data-shift-id="{{ $day['shift']->id }}"
-                                        data-editing="0">
-                                        修正
-                                    </button>
+                                    @if($editLockReason)
+                                        <button type="button"
+                                            class="btn-edit-disabled"
+                                            data-lock-reason="{{ $editLockReason }}">
+                                            修正不可
+                                        </button>
+                                    @else
+                                        <button type="button"
+                                            class="btn-edit edit-shift-btn"
+                                            data-shift-id="{{ $day['shift']->id }}"
+                                            data-editing="0">
+                                            修正
+                                        </button>
+                                    @endif
                                 @elseif($lastMaster)
                                     <form action="{{ route('shift.store') }}" method="POST" class="quick-add-form m-0-inline">
                                         @csrf
@@ -363,6 +371,7 @@
         data-bulk-count="{{ old('target_dates') ? count(old('target_dates')) : 0 }}"
         data-shift-delete-url="{{ route('shift.delete') }}"
         data-shift-update-time-url="{{ route('shift.updateTime') }}"
+        data-edit-lock-reason="{{ $editLockReason }}"
         class="hidden">
     </span>
 

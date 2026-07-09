@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttendanceRequest;
 use App\Models\Shift;
 use App\Models\ShiftSubmission;
 use App\Models\User;
@@ -13,6 +14,10 @@ use Illuminate\Support\Facades\Auth;
 
 class ReportController extends Controller
 {
+    // 💡 「月次申請」は AttendanceController の月次提出フラグ用の特殊レコードなので、
+    //    勤怠申請承認の未承認件数からは除外する（AttendanceRequestApprovalControllerと同じ方針）。
+    private const ATTENDANCE_SUBMISSION_REQUEST_TYPE = '月次申請';
+
     // 💡 サイドバーの「集計レポート」リンクの遷移先
     public function index(Request $request)
     {
@@ -23,8 +28,11 @@ class ReportController extends Controller
         // 💡 未承認（申請中）件数：シフト承認画面と同じ「同じ部署・admin=false」の条件で数える
         $pendingApprovalsCount = 0;
 
-        // 💡 未承認の勤怠申請（打刻修正）件数：同じく「同じ部署・admin=false」の条件で数える
+        // 💡 未承認の打刻修正申請件数：同じく「同じ部署・admin=false」の条件で数える
         $pendingWorkingCorrectionsCount = 0;
+
+        // 💡 未承認の勤怠申請（遅刻・早退・欠勤・有給・半休・残業等）件数
+        $pendingAttendanceRequestsCount = 0;
 
         if ($isAdmin) {
             $pendingApprovalsCount = ShiftSubmission::where('status', '申請中')
@@ -38,12 +46,20 @@ class ReportController extends Controller
                     $query->where('dept', $user->dept)->where('admin', false);
                 })
                 ->count();
+
+            $pendingAttendanceRequestsCount = AttendanceRequest::where('status', '申請中')
+                ->where('request_type', '!=', self::ATTENDANCE_SUBMISSION_REQUEST_TYPE)
+                ->whereHas('user', function ($query) use ($user) {
+                    $query->where('dept', $user->dept)->where('admin', false);
+                })
+                ->count();
         }
 
         return view('reports.index', [
             'isAdmin' => $isAdmin,
             'pendingApprovalsCount' => $pendingApprovalsCount,
             'pendingWorkingCorrectionsCount' => $pendingWorkingCorrectionsCount,
+            'pendingAttendanceRequestsCount' => $pendingAttendanceRequestsCount,
         ]);
     }
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Shift;
 use App\Models\ShiftMaster;
 use App\Models\ShiftSubmission;
+use App\Support\ShiftTimeHelper;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
@@ -68,6 +69,18 @@ class ShiftController extends Controller
             ->first();
         $submissionStatus = $monthSubmission->status ?? '未提出';
 
+        // 💡 インライン修正のロック判定（②提出済み/承認済み、③先月以前）
+        //    この一覧ページに表示される日付は全て同じ年月なので、ページ単位で判定してよい
+        $isSubmissionLocked = ShiftTimeHelper::isSubmissionLocked($submissionStatus);
+        $isPastMonth = ShiftTimeHelper::isPastMonth($startOfMonth);
+
+        $editLockReason = null;
+        if ($isSubmissionLocked) {
+            $editLockReason = '申請中または承認済みのシフトは修正できません';
+        } elseif ($isPastMonth) {
+            $editLockReason = '先月以前のシフトは修正できません';
+        }
+
         return view('shift.list', [
             'days' => $days,
             'year' => $year,
@@ -75,6 +88,7 @@ class ShiftController extends Controller
             'shiftMasters' => $shiftMasters,
             'lastMaster' => $lastMaster,
             'submissionStatus' => $submissionStatus,
+            'editLockReason' => $editLockReason,
         ]);
     }
 
@@ -161,7 +175,7 @@ class ShiftController extends Controller
                         'date' => $shift->target_date->format('Y-m-d'),
                         'shift_id' => $shift->id,
                         'attendance' => date('H:i', strtotime($shift->shiftMaster->attendance)),
-                        'leaving' => date('H:i', strtotime($shift->shiftMaster->leaving)),
+                        'leaving' => ShiftTimeHelper::formatLeaving($shift->shiftMaster->attendance, $shift->shiftMaster->leaving),
                         'master_name' => $shift->shiftMaster->name,
                         'edit_url' => route('shiftcorrection.index', ['shift_id' => $shift->id]),
                     ];
@@ -185,10 +199,34 @@ class ShiftController extends Controller
             ->where('user_id', Auth::id())
             ->firstOrFail();
 
+        $targetDate = Carbon::parse($shift->target_date);
+
+        // ② 提出済み（申請中）または承認済みのシフトはロックして変更させない
+        $monthSubmission = ShiftSubmission::where('user_id', Auth::id())
+            ->where('year', $targetDate->year)
+            ->where('month', $targetDate->month)
+            ->first();
+
+        if (ShiftTimeHelper::isSubmissionLocked($monthSubmission->status ?? null)) {
+            return response()->json([
+                'success' => false,
+                'message' => '申請中または承認済みのシフトは変更できません',
+            ], 422);
+        }
+
+        // ③ 先月以前（当月より過去）のシフトはロックして変更させない
+        if (ShiftTimeHelper::isPastMonth($targetDate)) {
+            return response()->json([
+                'success' => false,
+                'message' => '先月以前のシフトは修正できません',
+            ], 422);
+        }
+
         if (!empty($validated['master_id'])) {
             $shift->master_id = $validated['master_id'];
         }
         $shift->attendance_edit = $validated['attendance_edit'];
+        // ① 退勤 <= 出勤（日をまたぐ）でもエラーにはせず、そのまま保存を許可する
         $shift->leaving_edit = $validated['leaving_edit'];
         $shift->save(); // updated_at が自動的に現在時刻に更新される
 
@@ -197,7 +235,8 @@ class ShiftController extends Controller
         return response()->json([
             'success' => true,
             'attendance' => date('H:i', strtotime($shift->attendance_edit)),
-            'leaving' => date('H:i', strtotime($shift->leaving_edit)),
+            // ① 出勤以下の退勤時刻には「（翌日）」を自動付記して返す（共通ヘルパー経由）
+            'leaving' => ShiftTimeHelper::formatLeaving($shift->attendance_edit, $shift->leaving_edit),
             'master_name' => $shift->shiftMaster->name ?? null,
         ]);
     }
