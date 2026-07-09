@@ -15,6 +15,10 @@ class EmployeeController extends Controller
         $keyword = $request->input('keyword');
         $employeeId = $request->input('employee_id');
         $dept = $request->input('dept');
+        
+        // 💡 画面からのソート要求を正しく受け取る（初期値はIDの▼(desc)）
+        $sortBy = $request->input('sort_by', 'id');
+        $order = strtolower($request->input('order', 'desc')) === 'asc' ? 'asc' : 'desc';
 
         // プルダウン用：重複を除いた部署名一覧
         $depts = User::whereNotNull('dept')
@@ -50,7 +54,8 @@ class EmployeeController extends Controller
             $query->where('dept', $dept);
         }
 
-        $employees = $query->orderBy('name')->paginate(50)->withQueryString();
+        // 💡 決定したソート条件でデータを取得
+        $employees = $query->orderBy($sortBy, $order)->paginate(50)->withQueryString();
 
         return view('employees.index', [
             'employees'  => $employees,
@@ -58,6 +63,8 @@ class EmployeeController extends Controller
             'keyword'    => $keyword,
             'employeeId' => $employeeId,
             'dept'       => $dept,
+            'sortBy'     => $sortBy,
+            'order'      => $order,
         ]);
     }
 }
