@@ -14,4 +14,10 @@ class AttendanceRequest extends Model
         'request_time',
         'attachment'
     ];
+
+    // 💡 承認画面で $attendanceRequest->user->name / dept を使うために追加
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }
