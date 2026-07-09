@@ -104,42 +104,90 @@
 }
 
 /* ==========================================================================
-   対象日入力フォーム（Tailwind CSSの再現）
+   対象日入力フォーム（プレミアム調デザイン）
    ========================================================================== */
+
+/* アイコンを内包するための相対配置ラッパー */
+.date-field-wrap {
+    position: relative;
+}
+
+/* 入力欄の左側に添えるカレンダーアイコン */
+.date-field-icon {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2rem;
+    line-height: 1;
+    pointer-events: none; /* クリックは下の input へ通す */
+    opacity: 0.55;
+}
+
 .form-input-date {
     /* 1. ブラウザ特有のデフォルトデザインをリセット */
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    
-    /* 2. サイズと形状 (w-full rounded-lg p-2.5 text-sm) */
+
+    /* 2. サイズと形状：アイコン分の左余白を確保しつつゆったりめに */
     width: 100%;
-    padding: 0.625rem 0.75rem; /* p-2.5 (10px 12px相当) */
-    font-size: 0.875rem;       /* text-sm */
-    border-radius: 0.5rem;     /* rounded-lg */
+    padding: 15px 18px 15px 48px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border-radius: 8px;
     box-sizing: border-box;
-    
-    /* 3. 配色とシャドウ (border-gray-300 bg-white text-gray-800 shadow-sm) */
-    border: 1px solid #d1d5db; /* border-gray-300 (グレーの枠組み) */
-    background-color: #ffffff; /* bg-white */
-    color: #1f2937;            /* text-gray-800 */
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
-    
-    /* 4. アニメーションとリセット (transition-all outline-none) */
+
+    /* 3. 配色とシャドウ：白ベースの上品な質感 */
+    border: 1.5px solid #e5e7eb;
+    background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 100%);
+    color: #1a2a4a;
+    box-shadow:
+        0 1px 2px rgba(15, 23, 42, 0.04),
+        0 6px 16px rgba(15, 23, 42, 0.05);
+
+    /* 4. アニメーションとリセット */
     outline: none;
-    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 5. フォーカス時の演出 (focus:border-blue-500 focus:ring-4 focus:ring-blue-100) */
+/* ホバー時：ふわっと影を持ち上げる */
+.form-input-date:hover {
+    border-color: #cbd5e1;
+    box-shadow:
+        0 2px 4px rgba(15, 23, 42, 0.05),
+        0 10px 22px rgba(15, 23, 42, 0.08);
+}
+
+/* 読み取り専用（まとめて追加モード時）はやや控えめな見た目に */
+.form-input-date[readonly] {
+    cursor: default;
+    background: #f8fafc;
+    color: #64748b;
+    box-shadow: none;
+}
+
+/* 5. フォーカス時の演出：紺色のリングでキリッと引き締める */
 .form-input-date:focus {
-    border-color: #3b82f6; /* focus:border-blue-500 */
-    /* キレイな青いボカシ（外枠の光）を再現 */
-    box-shadow: 0 0 0 4px rgba(219, 234, 254, 0.75); /* focus:ring-4 focus:ring-blue-100 */
+    background: #ffffff;
+    border-color: #1a2a4a;
+    box-shadow:
+        0 0 0 4px rgba(26, 42, 74, 0.08),
+        0 10px 22px rgba(15, 23, 42, 0.08);
 }
 
-/* カレンダーアイコンを押しやすくする調整 */
+/* カレンダーアイコンは控えめに、ホバーで強調 */
 .form-input-date::-webkit-calendar-picker-indicator {
     cursor: pointer;
+    opacity: 0.45;
+    transition: opacity 0.2s ease;
+    padding: 4px;
+}
+
+.form-input-date::-webkit-calendar-picker-indicator:hover {
+    opacity: 0.9;
 }
 
 /* ==========================================================================
