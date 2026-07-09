@@ -218,8 +218,8 @@ body {
 .history-section-title {
     font-size: 16px;
     font-weight: bold;
-    color: #1aaba8;
-    border-bottom: 2px solid #26d0ce;
+    color: #ffffff;
+    border-bottom: 2px solid #ffffff;
     padding-bottom: 5px;
     display: inline-block;
     margin-bottom: 20px;
@@ -228,7 +228,7 @@ body {
     display: flex;
     align-items: center;
     text-align: center;
-    color: #7f8c8d;
+    color: #ffffff;
     font-size: 14px;
     margin: 20px 0;
 }

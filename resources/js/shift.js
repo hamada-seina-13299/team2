@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (modalTargetDate) {
                     modalTargetDate.readOnly = false;
                     modalTargetDate.style.pointerEvents = 'auto';
-                    modalTargetDate.className = "w-full border border-gray-300 rounded-lg p-2.5 bg-white text-gray-800 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none text-sm";
+                    modalTargetDate.className = "form-input-date";
                 }
 
                 openAddModal(this.getAttribute('data-date'));

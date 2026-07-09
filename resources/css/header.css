@@ -27,6 +27,9 @@
 
 .user-info {
     color: #4b5563;
+    display: flex;
+    align-items: center;
+    gap: 16px;
 }
 
 .user-name {
@@ -44,6 +47,12 @@
     text-decoration: none;
     display: inline-block;
     transition: color 0.2s ease, text-decoration 0.2s ease;
+    background: none;
+    border: none;
+    font: inherit;
+    font-weight: inherit;
+    cursor: pointer;
+    padding: 0;
 }
 
 /* ❓マークやユーザー名にマウスを乗せたときに下線を表示 */
@@ -51,4 +60,225 @@
 .header-user-link:hover {
     color: #1aaba8; /* ホバー時に少し濃い青緑にしてメリハリを付与 */
     text-decoration: underline;
+}
+
+/* ==========================================================================
+   🔽 ヘッダー共通ドロップダウンメニュー（❓ / ユーザー名 で共用）
+   ========================================================================== */
+.header-dropdown-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.header-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    min-width: 220px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    padding: 8px 0;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    transform: translateY(-8px);
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 2000;
+}
+
+.header-dropdown-menu.is-open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.header-dropdown-menu-item {
+    display: block;
+    width: 100%;
+    padding: 10px 20px;
+    color: #333333;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: normal;
+    white-space: nowrap;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.header-dropdown-menu-item:hover {
+    background-color: #e6f7f7;
+    color: #1aaba8;
+}
+
+/* ログアウトボタンを<form>内の<button>で実装しているため、幅を親要素に合わせる */
+.header-dropdown-menu-item--button {
+    font-size: 14px;
+}
+
+/* ==========================================================================
+   💡 クラス制御方式の軽量モーダルシステム（スクロール完全対応版）
+   ========================================================================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+/* 🔥 JavaScriptでこのクラスがついた時に表示する */
+.modal-overlay.is-open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-window {
+    background-color: #ffffff;
+    width: 90%;
+    max-width: 550px;
+    height: 75vh; /* 💡 高さを固定してスクロール可能な領域を確定させる */
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    transform: translateY(-20px);
+    transition: transform 0.3s ease;
+}
+
+.modal-overlay.is-open .modal-window {
+    transform: translateY(0);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    flex-shrink: 0; /* ヘッダーが潰れないように固定 */
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #1f2937;
+    font-weight: bold;
+}
+
+/* × ボタンをキレイなデザインに整列 */
+.modal-close-btn {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    transition: color 0.2s;
+}
+.modal-close-btn:hover {
+    color: #374151;
+}
+
+/* 💡 スクロール領域の完全最適化 */
+.modal-body {
+    padding: 20px;
+    overflow-y: auto; /* 💡 縦スクロールを有効化 */
+    flex-grow: 1;     /* 残りの高さをすべてこの文章エリアに割り当てる */
+    font-size: 13px;
+    color: #4b5563;
+    line-height: 1.6;
+    text-align: left;
+}
+
+.modal-body p {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: flex-end;
+    flex-shrink: 0; /* フッターが潰れないように固定 */
+}
+
+.modal-action-btn {
+    border: none;
+    background-color: #26d0ce;
+    color: #ffffff;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.modal-action-btn:hover {
+    background-color: #1eb3b1;
+}
+
+/* コンテンツが短いモーダル用：固定の75vhをやめて内容に合わせた高さにする */
+.modal-window--auto {
+    height: auto;
+    max-height: 80vh;
+}
+
+/* ==========================================================================
+   🌤️ 背景の時間帯設定：ラジオボタンリスト
+   ========================================================================== */
+.sky-option-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.sky-option-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.sky-option-item:hover {
+    border-color: #26d0ce;
+    background-color: #f4fdfd;
+}
+
+.sky-option-item:has(input:checked) {
+    border-color: #26d0ce;
+    background-color: #e6f7f7;
+}
+
+.sky-option-item input[type="radio"] {
+    accent-color: #26d0ce;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.sky-option-label {
+    font-size: 14px;
+    font-weight: bold;
+    color: #333333;
 }
