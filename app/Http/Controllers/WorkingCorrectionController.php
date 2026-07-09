@@ -184,76 +184,10 @@ class WorkingCorrectionController extends Controller
             return redirect()->back()->with('error', '承認済みの申請は取消できません。');
         }
 
-        $existingRecord = DB::table('workings')
-            ->where('user_id', $correction->user_id)
-            ->where('punch_date', $correction->target_date)
-            ->first();
+        // 💡 workingsテーブルを「修正前」の状態に戻す（承認却下と共通のロジック。行が削除済みなら再INSERTで復元）
+        $correction->rollbackWorkingsData();
 
-        if (
-            is_null($correction->before_attendance) &&
-            is_null($correction->before_leaving) &&
-            is_null($correction->before_break_time) &&
-            is_null($correction->before_break_end_time)
-        ) {
-
-            DB::table('workings')
-                ->where('user_id', $correction->user_id)
-                ->where('punch_date', $correction->target_date)
-                ->delete();
-        } else {
-            // シフトデータ(予定勤務地)の取得
-            $shiftData = DB::table('shifts')
-                ->join('shift_masters', 'shifts.master_id', '=', 'shift_masters.id')
-                ->where('shifts.user_id', $correction->user_id)
-                ->where('shifts.target_date', $correction->target_date)
-                ->select('shift_masters.working_place')
-                ->first();
-
-            $plannedPlace = $shiftData ? $shiftData->working_place : '未定';
-
-            // 動的ロールバック用配列の初期化
-            $rollbackData = ['updated_at' => Carbon::now()];
-
-            // 修正仕様：秒を切り捨てて時分(H:i)で変化があった（その申請で修正された）項目のみを特定して戻す
-            $bAtt = $correction->before_attendance ? Carbon::parse($correction->before_attendance)->format('H:i') : null;
-            $aAtt = $correction->after_attendance  ? Carbon::parse($correction->after_attendance)->format('H:i')  : null;
-            if ($bAtt !== $aAtt) {
-                $rollbackData['attendance'] = $correction->before_attendance;
-            }
-
-            $bLea = $correction->before_leaving ? Carbon::parse($correction->before_leaving)->format('H:i') : null;
-            $aLea = $correction->after_leaving  ? Carbon::parse($correction->after_leaving)->format('H:i')  : null;
-            if ($bLea !== $aLea) {
-                $rollbackData['leaving'] = $correction->before_leaving;
-            }
-
-            $bBIn = $correction->before_break_time ? Carbon::parse($correction->before_break_time)->format('H:i') : null;
-            $aBIn = $correction->after_break_time  ? Carbon::parse($correction->after_break_time)->format('H:i')  : null;
-            if ($bBIn !== $aBIn) {
-                $rollbackData['break_time'] = $correction->before_break_time;
-            }
-
-            $bBOut = $correction->before_break_end_time ? Carbon::parse($correction->before_break_end_time)->format('H:i') : null;
-            $aBOut = $correction->after_break_end_time  ? Carbon::parse($correction->after_break_end_time)->format('H:i')  : null;
-            if ($bBOut !== $aBOut) {
-                $rollbackData['break_end_time'] = $correction->before_break_end_time;
-            }
-
-            // 勤務地のロールバック判定
-            if ($correction->before_working_place !== $correction->after_working_place) {
-                $rollbackData['working_place'] = ($correction->before_working_place === $plannedPlace)
-                    ? null
-                    : $correction->before_working_place;
-            }
-
-            //  変化のあった項目のみが $rollbackData にセットされているため、安全にupdateを実行
-            DB::table('workings')
-                ->where('user_id', $correction->user_id)
-                ->where('punch_date', $correction->target_date)
-                ->update($rollbackData);
-        }
-
-        // 申請履歴自体の削除
+        // 申請履歴自体の削除（本人による取り消しは記録を残さない）
         $correction->delete();
         return redirect()->back()->with('success', '打刻修正申請を取り消しました。');
     }

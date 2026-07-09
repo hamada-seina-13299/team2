@@ -34,6 +34,20 @@
                     <div class="font-bold text-gray-800 mb-1">シフト提出承認</div>
                     <div class="text-sm text-gray-500">従業員から提出されたシフトを確認・承認します。</div>
                 </a>
+
+                <a href="{{ route('working.corrections.index') }}" class="relative block bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md hover:border-gray-200 transition-all">
+                    @if($pendingWorkingCorrectionsCount > 0)
+                        <span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[1.5rem] h-6 flex items-center justify-center px-1.5 shadow-sm border-2 border-white">
+                            {{ $pendingWorkingCorrectionsCount > 99 ? '99+' : $pendingWorkingCorrectionsCount }}
+                        </span>
+                    @else
+                        <span class="absolute top-3 right-3 text-xs text-gray-400">未承認はありません</span>
+                    @endif
+
+                    <div class="text-2xl mb-2">📝</div>
+                    <div class="font-bold text-gray-800 mb-1">勤怠申請承認</div>
+                    <div class="text-sm text-gray-500">従業員から提出された打刻修正申請を確認・承認します。</div>
+                </a>
             @endif
         </div>
     </div>
