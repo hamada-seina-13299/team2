@@ -244,7 +244,10 @@
 
                     <div id="modalTargetDateGroup" class="form-control-group">
                         <label class="form-field-label">対象日 <span class="required-star">*</span></label>
-                        <input class="form-input-date" type="date" id="modalTargetDate" name="target_date" value="{{ old('target_date') }}">
+                        <div class="date-field-wrap">
+                            <span class="date-field-icon" aria-hidden="true">📅</span>
+                            <input class="form-input-date" type="date" id="modalTargetDate" name="target_date" value="{{ old('target_date') }}">
+                        </div>
                     </div>
 
                     <div id="bulkDateMessageGroup" class="hidden bulk-msg-banner">
