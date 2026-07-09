@@ -413,6 +413,28 @@
     color: white;
 }
 
+/* 「修正不可」ボタン（提出済み/承認済み・先月以前のロック時） */
+.btn-edit-disabled {
+    display: inline-block;
+    width: fit-content;
+    white-space: nowrap;
+    padding: 6px 14px;
+    background: #f1f5f9;
+    color: #94a3b8;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 550;
+    cursor: not-allowed;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.btn-edit-disabled:hover {
+    background: #e2e8f0;
+    color: #64748b;
+}
+
 /* 「削除」ボタン */
 .btn-delete {
     display: inline-block;
