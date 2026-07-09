@@ -1,236 +1,639 @@
-.shift-row-default { background-color: #fff; }
-.shift-row-default:hover { background-color: rgba(249,250,251,0.75); }
-.shift-row-sunday { background-color: rgba(254,242,242,0.3); }
-.shift-row-sunday:hover { background-color: rgba(254,226,226,0.4); }
-.shift-row-saturday { background-color: rgba(239,246,255,0.3); }
-.shift-row-saturday:hover { background-color: rgba(219,234,254,0.4); }
+@charset "UTF-8";
 
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(0,0,0,0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 999;
-    padding: 1rem;
-    /* 🎬 ダッシュボードのポップアップと同じフェード＋スライド演出 */
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
+/* ==========================================================================
+   全体構造・カードレイアウト
+   ========================================================================== */
+
+.main-wrapper {
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
 }
 
-.modal-overlay.is-open {
-    opacity: 1;
-    pointer-events: auto;
+.container {
+    padding: 0;
 }
 
-.modal-container {
-    background: #fff;
-    border-radius: 0.75rem;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-    padding: 1.5rem;
+/* 画面全体のベースコンテナ（背景色や余白、レスポンシブの土台） */
+.view-container {
     width: 100%;
-    max-width: 32rem;
-    max-height: 90vh;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    min-height: 100vh;
+    border-radius: 0.75rem;
+    box-sizing: border-box;
+    font-family: 'Montserrat', -apple-system, sans-serif;
+}
+
+/* 画面上部に配置する白背景のカード型ヘッダー枠 */
+.header-card {
+    background-color: rgba(255, 255, 255, 0.95); 
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 14px rgba(14, 165, 233, 0.08); 
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+/* ヘッダー内のタイトルや操作系を横並びにするフレックスボックス */
+.header-title-flex {
     display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    transform: translateY(-20px);
-    transition: transform 0.3s ease;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
 }
 
-.modal-overlay.is-open .modal-container {
-    transform: translateY(0);
+/* ヘッダー内のメインタイトル（大見出し） */
+.header-title-flex h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1a2a4a;
+    margin: 0;
+    letter-spacing: 0.03em;
 }
 
-.master-option-card {
-    border: 2px solid #e5e7eb;
-    background: #fff;
-    border-radius: 0.5rem;
-    padding: 0.75rem;
-    padding-right: 2.5rem;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.15s, box-shadow 0.15s;
-    position: relative;
-}
+/* ==========================================================================
+   月移動ページャー
+   ========================================================================== */
 
-.master-option-card:hover {
-    border-color: #93c5fd;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-
-.master-option-card.selected {
-    border-color: #3b82f6;
-    background-color: rgba(239,246,255,0.5);
-    box-shadow: 0 0 0 2px rgba(191,219,254,1);
-}
-
-.delete-master-btn {
-    position: absolute;
-    right: 0.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1.75rem;
-    height: 1.75rem;
+/* ページャー（前月・次月移動ボタンと現在の月表示）の横並びコンテナ */
+.month-pager {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 9999px;
-    color: #9ca3af;
-    transition: color 0.15s, background-color 0.15s;
-    font-size: 0.75rem;
-    font-weight: bold;
+    gap: 0.25rem;
 }
 
-.delete-master-btn:hover {
-    color: #ef4444;
-    background-color: rgba(254,242,242,1);
-}
-
-.add-shift-btn {
-    color: #2563eb;
-    font-weight: 600;
-    font-size: 0.75rem;
-    white-space: nowrap;
-    transition: color 0.15s;
-}
-
-.add-shift-btn:hover {
-    color: #1d4ed8;
-    text-decoration: underline;
-}
-
-.btn-edit {
-    border: 1px solid #60a5fa;
-    color: #2563eb;
-    padding: 0.25rem 0.75rem;
+/* 前月・次月へ移動する矢印などのボタン */
+.pager-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1.5px solid #bae6fd;
     border-radius: 0.5rem;
-    background: #fff;
-    font-size: 0.75rem;
-    font-weight: 500;
-    white-space: nowrap;
-    transition: background-color 0.15s;
-}
-
-.btn-edit:hover { background-color: #eff6ff; }
-
-.btn-delete {
-    border: 1px solid #f87171;
-    color: #ef4444;
-    padding: 0.25rem 0.75rem;
-    border-radius: 0.5rem;
-    background: #fff;
-    font-size: 0.75rem;
-    font-weight: 500;
-    white-space: nowrap;
-    transition: background-color 0.15s;
-}
-
-.btn-delete:hover { background-color: #fef2f2; }
-
-.btn-approve {
-    border: 1px solid #34d399;
-    color: #059669;
-    padding: 0.25rem 0.75rem;
-    border-radius: 0.5rem;
-    background: #fff;
-    font-size: 0.75rem;
-    font-weight: 500;
-    white-space: nowrap;
-    transition: background-color 0.15s;
-}
-
-.btn-approve:hover { background-color: #ecfdf5; }
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.animate-fade-in {
-    animation: fadeIn 0.2s ease-out forwards;
-}
-
-.floating-bulk-btn {
-    z-index: 40;
-    background-color: #2563eb;
-    color: #fff;
-    font-weight: 700;
-    padding: 0.75rem 1.5rem;
-    border-radius: 9999px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    background-color: #ffffff;
     display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    color: #0369a1;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+/* 移動ボタンのホバー（マウスカーソルが乗った時）の背景色シフト */
+.pager-btn:hover {
+    background-color: #1a2a4a;
+    color: #ffffff;
+    border-color: #1a2a4a;
+}
+
+/* 「〇〇年〇月」といった現在表示中の月テキスト */
+.pager-current {
+    font-size: 1.5rem;
+    font-weight: 700;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    color: #1a2a4a;
+    letter-spacing: 0.02em;
+}
+
+/* ==========================================================================
+   選択中マスタバッジ
+   ========================================================================== */
+
+/* 選択されたマスタ（フィルター条件など）バッジを中央寄せするコンテナ */
+.selected-master-container {
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 選択中マスタを表現する丸角の青いバッジの外枠 */
+.selected-master-badge {
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+    background-color: #ffffff;
+    border: 1px solid #c5a059;
+    border-radius: 9999px;
+    padding: 0.375rem 0.5rem 0.375rem 1rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+/* バッジ内のテキスト（選択しているマスタ名など） */
+.selected-master-label {
     font-size: 0.875rem;
-    white-space: nowrap;
-    transition: all 0.2s;
+    font-weight: 600;
+    color: #8c6d31; 
+}
+
+/* 選択状態を解除（クリア）するための「×」ボタン */
+.btn-clear-master {
+    width: 1.25rem;
+    height: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    color: #c5a059;
     border: none;
+    background: transparent;
+    font-size: 0.75rem;
+    font-weight: 700;
+    transition: all 0.2s;
     cursor: pointer;
 }
-.floating-bulk-btn:hover {
-    background-color: #1d4ed8;
-    transform: translateY(-2px);
-    box-shadow: 0 15px 30px rgba(0,0,0,0.2);
-}
-.floating-bulk-btn:active {
-    transform: translateY(0);
+
+/* 解除ボタンのホバー時 */
+.btn-clear-master:hover {
+    color: #ffffff;
+    background-color: #bd9a53;
 }
 
-.floating-bulk-btn-green {
-    background-color: #059669;
+/* ==========================================================================
+   フラッシュアラート
+   ========================================================================== */
+
+/* 保存完了などのメッセージを表示する緑色の通知用ボックス */
+.alert-success {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background-color: #f0fdf4;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(21, 128, 61, 0.03);
+    font-size: 0.875rem;
 }
-.floating-bulk-btn-green:hover {
+
+/* ==========================================================================
+   シフト一覧テーブル（外枠・境界線を統合整理）
+   ========================================================================== */
+
+/* テーブル崩れを防ぎ、はみ出た場合に横スクロールさせるための外枠ラッパー */
+.table-wrapper {
+    background-color: rgba(255, 255, 255, 0.95); 
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 14px rgba(14, 165, 233, 0.08);
+    overflow: hidden; 
+    width: 100%;
+    border: 3px solid #0284c7; 
+}
+
+/* シフト一覧を構成するメインテーブル本体 */
+.shift-list-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    min-width: 650px;
+}
+
+/* テーブル最上部のヘッダー行（見出し行） */
+.table-head-row {
+    background-color: #0369a1; 
+}
+
+/* ヘッダー行内の各セル（見出しテキスト） */
+.table-head-row th {
+    padding: 15px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #ffffff;
+    text-align: center;
+    box-sizing: border-box;
+    letter-spacing: 0.02em;
+    border-top: none; 
+    border-bottom: 2px solid #0284c7;
+    border-left: 1.5px solid rgba(255, 255, 255, 0.2); 
+    border-right: 1.5px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 左端と右端のヘッダー・セルの余計な縦枠を消して、外枠の角丸に馴染ませる */
+.table-head-row th:first-child { border-left: none; }
+.table-head-row th:last-child  { border-right: none; }
+.table-body-row td:first-child { border-left: none; }
+.table-body-row td:last-child  { border-right: none; }
+
+/* --- 各カラムの横幅調整用の補助クラス群 --- */
+.th-select  { width: 12%; } /* 選択チェックボックス列 */
+.th-date    { width: 12%; } /* 日付列 */
+.th-time    { width: 16%; } /* 時間入力列 */
+.th-place   { width: 40%; } /* 場所・店舗列 */
+.th-action  { width: 24%; } /* 操作（編集等）ボタン列 */
+
+/* データが表示される各行（1日単位の行など） */
+.table-body-row {
+    border-bottom: 1.5px solid #bae6fd; 
+    height: 3.5rem;
+    transition: background-color 0.15s ease;
+}
+
+/* データ行内の各セル */
+.table-body-row td {
+    text-align: center;
+    vertical-align: middle;
+    box-sizing: border-box;
+}
+
+/* --- 行の背景色バリエーション（曜日やホバーによる分岐） --- */
+.shift-row-default:hover { background-color: #e0f2fe; } /* 通常行のホバー（爽やかな極薄の青） */
+.shift-row-sunday { background-color: #fff1f2; }          /* 日曜日の行（薄い赤） */
+.shift-row-sunday:hover { background-color: #fecdd3; }   /* 日曜日行のホバー */
+.shift-row-saturday { background-color: #ecfeff; }       /* 土曜日の行（澄んだライトアクア） */
+.shift-row-saturday:hover { background-color: #a5f3fc; } /* 土曜日行のホバー */
+
+/* --- テキストカラー（曜日や状況に合わせてJS等から動的に付与） --- */
+.text-gray-800 { color: #0f172a; } /* 通常（平日など）の文字色 */
+.text-red-600 { color: #e11d48; }   /* 日曜・祝日などの赤文字 */
+.text-blue-600 { color: #0284c7; }  /* 土曜日などの青文字 */
+
+/* 行選択用のチェックボックス型 */
+.form-checkbox {
+    width: 1rem;
+    height: 1rem;
+    color: #0369a1;
+    border-color: #bae6fd;
+    border-radius: 0.25rem;
+    cursor: pointer;
+}
+
+/* データ未入力時や区切りを表現するハイフン記号 */
+.cell-hyphen {
+    font-size: 0.75rem;
+    color: #bae6fd;
+    user-select: none;
+}
+
+/* 日付セルのテキスト（太字で強調） */
+.cell-date-text {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+/* 日付の下に表示される「元日」などの祝日名テキスト（小さく、はみ出たら「...」にする） */
+.holiday-badge-text {
+    display: block;
+    font-size: 10px;
+    font-weight: 500;
+    color: #f43f5e;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* セル内で直接時間を編集するためのインライン入力フォーム（非表示に設定） */
+.form-input-time-inline {
+    width: 100%;
+    border: 1px solid #bae6fd;
+    border-radius: 0.5rem;
+    padding: 0.25rem;
+    font-size: 0.875rem;
+    text-align: center;
+    box-sizing: border-box;
+    display: none;            
+}
+
+/* 勤務場所などのテキストが長すぎる場合に自動で「...」にするセル */
+.cell-place {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+   テーブルセル内の個別パーツ・要素
+   ========================================================================== */
+
+/* 直接時間を編集するためのインライン入力フォーム */
+.form-input-time-inline {
+    width: 100%;
+    border: 1px solid #bae6fd;
+    border-radius: 0.5rem;
+    padding: 0.25rem;
+    font-size: 0.875rem;
+    text-align: center;
+    box-sizing: border-box;
+    display: none; /* 初期状態は非表示 */           
+}
+
+/* セル内で直接場所や項目を選択するためのドロップダウン */
+.form-select-inline {
+    width: 100%;
+    border: 1px solid #bae6fd;
+    border-radius: 0.5rem;
+    padding: 0.25rem;
+    font-size: 0.875rem;
+    background-color: #ffffff;
+    box-sizing: border-box;
+    display: none; /* 初期状態は非表示 */
+}
+
+/* 初期状態のテキスト表示 */
+.attendance-text,
+.leaving-text,
+.place-text {
+    display: inline-flex;
+}
+
+/* テキスト表示を非表示にする */
+.is-editing .attendance-text,
+.is-editing .leaving-text,
+.is-editing .place-text {
+    display: none !important;
+}
+
+/* 非表示だったinput要素とselect要素を表示する */
+.is-editing .form-input-time-inline,
+.is-editing .form-select-inline {
+    display: block !important;
+}
+
+/* Blade側のクラス名（attendance-input, leaving-input, place-select）にも対応させる場合 */
+.is-editing .attendance-input,
+.is-editing .leaving-input,
+.is-editing .place-select {
+    display: block !important;
+}
+
+/* 勤務場所名のテキスト自体のトリミングと文字色設定 */
+.place-name-inner {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+    color: #0f172a;
+}
+
+/* 薄い色で目立たせないハイフン（装飾用） */
+.cell-hyphen-light {
+    color: #cbd5e1;
+}
+
+/* 編集モード時：テキスト（表示用）を一括で隠す */
+.table-body-row.is-editing .attendance-text,
+.table-body-row.is-editing .leaving-text,
+.table-body-row.is-editing .place-text {
+    display: none !important;
+}
+
+/* 編集モード時：入力フォーム（インライン）を確実に表示する */
+.form-input-time-inline,
+.form-select-inline,
+.attendance-input,
+.leaving-input,
+.place-select {
+    display: block !important;
+    width: 100%;
+}
+
+/* ==========================================================================
+   各種編集・インライン追加ボタン
+   ========================================================================== */
+
+/* 「修正」ボタン */
+.btn-edit {
+    display: inline-block;
+    width: fit-content;
+    white-space: nowrap;    
+    padding: 6px 14px;        
+    background: transparent;
+    color: #3b5998;
+    border: 2px solid #3b5998;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 550;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;     
+}
+
+.btn-edit:hover {
+    background: #3b5998;
+    color: white;
+}
+
+/* 「削除」ボタン */
+.btn-delete {
+    display: inline-block;
+    width: fit-content;
+    white-space: nowrap;      
+    padding: 6px 14px;     
+    background: transparent;
+    color: #dc2626;
+    border: 2px solid #dc2626;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 550;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;     
+}
+
+.btn-delete:hover {
+    background: #dc2626;
+    color: white;
+}
+
+/* プレーンなインライン追加ボタン */
+.add-shift-btn {
+    background: transparent;
+    border: none;
+    font-size: 0.875rem;
+    font-weight: inherit;
+    cursor: pointer;
+    font-family: inherit;     
+}
+
+/* ==========================================================================
+   「土日祝を除くすべてにチェックを入れる」ボタン（画面左下固定版）
+   ========================================================================== */
+
+#selectWeekdaysBtn {
+    /* --- 画面左下に固定するための配置設定 --- */
+    position: fixed;            /* 画面に対して絶対固定 */
+    bottom: 24px;               /* 画面下端からの余白 */
+    left: 24px;                
+    z-index: 1000;              /* 最前面に配置 */
+
+    /* --- ベース構造（タップ領域・押しやすさの確保） --- */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 0.85rem 1.8rem;
+    font-size: 0.9375rem;       
+    font-weight: 600;
+    border-radius: 9999px;     
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: inherit;
+    white-space: nowrap;
+    user-select: none;
+
+    background-color: #ffffff;
+    color: #047857;
+    border: 1px solid #10b981;
+    box-shadow: 0 10px 25px -5px rgba(4, 120, 87, 0.2), 0 8px 10px -6px rgba(4, 120, 87, 0.1);
+}
+
+/* ホバー（マウスカーソルが乗った時）：色の反転＋上に浮き上がる */
+#selectWeekdaysBtn:hover {
     background-color: #047857;
+    border-color: #047857;
+    color: #ffffff;
+    transform: translateY(-4px); 
+    box-shadow: 0 20px 25px -5px rgba(4, 120, 87, 0.3);
 }
 
+/* クリックされた瞬間（アクティブ状態） */
+#selectWeekdaysBtn:active {
+    transform: translateY(-1px); /* クリック時に沈む */
+    box-shadow: 0 4px 6px rgba(4, 120, 87, 0.15);
+    transition: all 0.05s;
+}
+
+/* キーボード操作や誤操作時のフォーカス */
+#selectWeekdaysBtn:focus-visible {
+    outline: 3px solid #34d399;
+    outline-offset: 2px;
+}
+
+/* ==========================================================================
+   ヘッダー内・シフト提出エリア＆ボタン
+   ========================================================================== */
+
+/* ボタンを包むコンテナ */
+.floating-submit-container {
+    font-family: 'Montserrat', -apple-system, sans-serif;
+    display: flex;
+    align-items: center;
+}
+
+/* Form要素による不要な隙間の発生を防ぐ */
+.floating-submit-container form {
+    margin: 0;
+    display: inline-flex;
+}
+
+/* ボタンの共通ベーススタイル */
+.floating-bulk-btn {
+    display: inline-block;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+/* 🟢 「提出する」「申請中」用（初期状態：落ち着いたグリーン） */
+.floating-bulk-btn-green {
+    background-color: #047857; 
+    color: #ffffff;          
+    border: 2px solid #047857;   
+}
+
+/* ホバー時 */
+.floating-bulk-btn-green:not(.floating-bulk-btn-static):hover {
+    background-color: #10b981; 
+    border-color: #10b981;
+    color: #ffffff;             
+}
+
+/* 🔒 「承認済み」など、クリックさせない静的な状態のボタン */
 .floating-bulk-btn-static {
+    background-color: #f0fdf4;  
+    border: 2px solid #bbf7d0;
+    color: #047857;
     cursor: default;
 }
-.floating-bulk-btn-static:hover {
-    background-color: #059669;
-    transform: none;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+
+/* ==========================================================================
+   画面左下・入れ替わり固定アクションボタン
+   ========================================================================== */
+
+/* 1. 画面左下に全体を固定するコンテナ */
+.floating-bulk-btn-container {
+    font-family: 'Montserrat', -apple-system, sans-serif;
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 1000;
 }
 
+/* ボタンが切り替わる際のガタつきを防ぐラッパー */
 .floating-btn-swap {
+    display: inline-flex;
     position: relative;
-    min-height: 3.25rem;
-    min-width: 12rem;
 }
 
-.floating-btn-slot {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    opacity: 1;
-    transform: translateY(0);
-    transition: opacity 0.35s ease, transform 0.35s ease;
-    white-space: nowrap;
-    width: max-content;
-}
-
-.floating-btn-slot.btn-slot-hidden {
-    opacity: 0;
-    transform: translateY(14px);
-    pointer-events: none;
-}
-
-.bulk-message-box {
-    margin-bottom: 1rem;
-    padding: 0.75rem;
-    background-color: #eff6ff;
-    border: 1px solid #bfdbfe;
-    border-radius: 0.75rem;
-    display: flex;
+/* 2. ボタンの共通ベーススタイル */
+.floating-bulk-btn {
+    display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-}
-.bulk-message-text {
-    font-size: 0.875rem;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 0.85rem 1.8rem;
+    font-size: 0.9375rem;
     font-weight: 600;
-    color: #1e40af;
-    margin: 0;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: inherit;
+    white-space: nowrap;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+/* 📅 土日祝を除くすべてにチェックを入れる */
+#selectWeekdaysBtn {
+    background-color: #f59e0b; 
+    color: #ffffff;          
+    border: 1px solid #f59e0b;
+    box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.3), 0 8px 10px -6px rgba(245, 158, 11, 0.15);
+}
+
+/* ホバー時 */
+#selectWeekdaysBtn:hover {
+    background-color: #fbbf24; 
+    border-color: #fbbf24;
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(251, 191, 36, 0.4);
+}
+
+/* ✨ 選択した○日分をまとめて追加 */
+#openBulkModalBtn {
+    background-color: #f59e0b; 
+    color: #ffffff;            
+    border: 1px solid #f59e0b;
+    box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.3);
+}
+
+/* ホバー時 */
+#openBulkModalBtn:hover {
+    background-color: #fbbf24; 
+    border-color: #fbbf24;
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(251, 191, 36, 0.4);
+}
+
+/* 共通のクリック時（アクティブ）エフェクト */
+.floating-bulk-btn:active {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* 非表示にするためのクラス制御 */
+.btn-slot-hidden {
+    display: none !important;
+}
+
+/* カウント数字の装飾（白文字の中で太字でアピール） */
+.selected-badge-count {
+    font-weight: 700;
+    margin: 0 2px;
 }
