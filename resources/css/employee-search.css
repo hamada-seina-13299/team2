@@ -1,149 +1,357 @@
-/* 社員検索画面 専用スタイル */
+@charset "UTF-8";
+
+.container {
+    padding: 0px;
+}
+
+/* ==========================================================================
+   全体構造・カードレイアウト
+   ========================================================================== */
+
+/* ページ全体のコンテナラッパー */
+.employee-search-container {
+    margin: 0px;
+    width: 100%;
+    padding: 24px;
+    background-color: #f1f5f9; 
+    min-height: 100vh;
+    border-radius: 0.75rem; 
+    box-sizing: border-box;
+    font-family: 'Montserrat', -apple-system, sans-serif;
+}
+
+/* 検索フォームセクション・テーブルセクションのカード */
+.employee-search-card {
+    background-color: #ffffff; 
+    border-radius: 0.75rem; 
+    box-shadow: 0 4px 14px rgba(100, 116, 139, 0.18); 
+    border: 1.5px solid #e2e8f0;
+    padding: 1.5rem; 
+    margin-bottom: 1.5rem; 
+    box-sizing: border-box;
+}
+
+/* ページタイトルまわりのヘッダー配置 */
+.employee-search-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+/* ページタイトル（h1） */
+.employee-search-title {
+    font-size: 1.125rem; 
+    font-weight: 700; 
+    color: #1a2a4a; 
+    margin: 0;
+    letter-spacing: 0.03em;
+}
+
+/* ==========================================================================
+   テーブル・スクロール・行セル
+   ========================================================================== */
+
+/* テーブルセクション専用（スクロール対応） */
+.employee-search-table-wrapper {
+    background-color: rgba(255, 255, 255, 0.95); 
+    border-radius: 0.75rem; 
+    box-shadow: 0 4px 14px rgba(14, 165, 233, 0.08);
+    overflow: hidden; 
+    width: 100% !important;
+    border: 1.8px solid #0284c7; 
+    display: block;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 横スクロールバーのデザイン */
+.table-wrapper::-webkit-scrollbar {
+    height: 8px;
+}
+.table-wrapper::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+.table-wrapper::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 4px;
+}
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/* 社員一覧を構成するメインテーブル本体 */
+.employee-search-table {
+    min-width: 750px !important;
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+/* 列が入れ替わる時のスライドアニメーション */
+.employee-search-table th,
+.employee-search-table td {
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.2s;
+}
+
+/* テーブル最上部のヘッダー行（見出し行） */
+.table-head-row {
+    background-color: #0369a1; 
+}
+
+/* 左端と右端のヘッダー・セルの余計な縦枠を消して、外枠の角丸に馴染ませる */
+.table-head-row th:first-child { border-left: none; }
+.table-head-row th:last-child  { border-right: none; }
+
+/* データが表示される各行 */
+.table-body-row {
+    border-bottom: 1.5px solid #bae6fd; 
+    height: 3.5rem;
+    transition: background-color 0.15s ease;
+}
+.table-body-row:hover {
+    background-color: #e0f2fe; 
+}
+
+/* データ行内の各セル */
+.employee-search-td {
+    text-align: center;
+    vertical-align: middle;
+    box-sizing: border-box;
+    padding: 12px 8px !important;
+    white-space: nowrap !important;
+    color: #0f172a; 
+    font-weight: 500;
+    border-left: 1.5px solid rgba(186, 230, 253, 0.4); 
+    border-right: 1.5px solid rgba(186, 230, 253, 0.4);
+}
+.table-body-row td:first-child { border-left: none; }
+.table-body-row td:last-child  { border-right: none; }
+
+/* 社員名セルの強調 */
+.employee-search-td-name {
+    font-weight: 600;
+}
+
+/* 長いテキスト（メールアドレス等）のトリミング用 */
+.employee-search-td-truncate {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap !important;
+}
+
+/* 各カラムのデフォルト幅設定 */
+.th-name  { width: 22%; }
+.th-id    { width: 14%; }
+.th-email { width: 26%; }
+.th-dept  { width: 18%; }
+.th-date  { width: 20%; }
+
+
+/* ==========================================================================
+   ドラッグ＆ドロップ対応カード・パーツ
+   ========================================================================== */
+
+/* 美しいベース（ドラッグ＆ドロップ機能と連動するための th） */
+.th-card-container {
+    padding: 0px !important; 
+    background-color: #e6fbf7 !important; 
+    border-top: none; 
+    border-bottom: 2px solid #0284c7;
+    border-left: 1.5px solid rgba(255, 255, 255, 0.2); 
+    border-right: 1.5px solid rgba(255, 255, 255, 0.2);
+    box-sizing: border-box;
+    vertical-align: middle;
+    position: relative;
+}
+
+/* 移動できる各項目の独立カード */
+.th-card {
+    width: 100%;
+    height: 100%;
+    padding: 15px 8px !important;
+    font-size: 16px;
+    font-weight: 600;
+    background-color: #0284c7;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    cursor: grab;
+    user-select: none;
+    box-sizing: border-box;
+    white-space: nowrap !important;
+    transition: background-color 0.15s ease;
+}
+.th-card:hover {
+    background-color: #ffffff !important; 
+    color: #0284c7 !important;           
+    box-shadow: inset 0 0 0 2px #0284c7;
+}
+
+/* ソート矢印の色も、背景の白に合わせて連動反転 */
+.th-card:hover .sort-arrow {
+    color: #0284c7 !important;
+    text-shadow: none;
+}
+
+/* 💡 社員名（移動不可の固定制限を解除し、他と同じく掴めるように修正） */
+.th-card.fixed-col {
+    cursor: grab;
+    background-color: #0284c7;
+}
+
+/* ドラッグ中：上下は完全に固定され、左右だけに「ぬるぬる」追従するスタイル */
+.th-card.is-dragging {
+    position: fixed !important;
+    z-index: 9999;
+    pointer-events: none; 
+    transform: scale(1.02);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+    background-color: #0284c7 !important;
+    border: 1.5px solid #ffffff;
+    border-radius: 0.5rem;
+    color: #ffffff;
+}
+
+/* ドラッグ中に元の場所を半透明にする影 */
+.th-card.drag-placeholder {
+    opacity: 0.2;
+    background-color: #0369a1 !important;
+    border: 1.5px dashed #ffffff;
+}
+
+.sort-arrow {
+    font-size: 0.85rem;
+    display: inline-block;
+    line-height: 1;
+    font-weight: bold;
+    color: #38bdf8;
+    margin-left: 4px;
+}
+
+/* ==========================================================================
+   検索フォーム・カード内の要素レイアウト
+   ========================================================================== */
 
 .employee-search-filter-form {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
-    align-items: end;
-}
-
-@media (min-width: 640px) {
-    .employee-search-filter-form {
-        grid-template-columns: repeat(4, 1fr);
-    }
-}
-
-.employee-search-filter-label {
-    display: block;
-    margin-bottom: 0.25rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #6b7280;
-}
-
-.employee-search-filter-input,
-.employee-search-filter-select {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end; 
+    gap: 16px; 
     width: 100%;
-    border: 1px solid #d1d5db;
-    border-radius: 0.5rem;
-    padding: 0.5rem;
-    font-size: 0.875rem;
-    background-color: #fff;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+}
+
+.employee-search-filter-form > div:not(.employee-search-filter-actions) {
+    flex: 1; 
+    min-width: 200px; 
+    box-sizing: border-box;
 }
 
 .employee-search-filter-actions {
     display: flex;
-    gap: 0.5rem;
+    align-items: center;
+    gap: 8px; 
+    margin-left: auto; 
+    box-sizing: border-box;
 }
 
-.employee-search-search-btn {
-    padding: 0.5rem 1rem;
-    background-color: #2563eb;
-    color: #fff;
+.employee-search-filter-label {
+    display: block;
     font-size: 0.875rem;
     font-weight: 600;
-    border-radius: 0.5rem;
-    white-space: nowrap;
-    flex: 1;
+    color: #4b5563; 
+    margin-bottom: 6px;
+}
+
+.employee-search-filter-input,
+.employee-search-filter-select {
+    display: block;
+    width: 100%;
+    padding: 11px 14px; 
+    font-size: 0.875rem;
+    border: 1px solid #d1d5db; 
+    border-radius: 6px;
+    background-color: #ffffff;
+    color: #1f2937;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease;
+}
+
+.employee-search-filter-input:focus,
+.employee-search-filter-select:focus {
+    border-color: #0077c2; 
+    background-color: #ffffff; 
+    box-shadow: 0 0 0 3px rgba(0, 119, 194, 0.15); 
+    outline: none;
+}
+
+/* ==========================================================================
+   ボタン類・サマリー
+   ========================================================================== */
+
+.employee-search-search-btn {
+    display: inline-block;
+    padding: 12px 24px;
+    background: transparent;
+    color: #3b5998; 
+    border: 2px solid #3b5998; 
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    white-space: nowrap; 
+    transition: all 0.2s ease;
+    margin-right: 8px;
+    box-sizing: border-box;
 }
 
 .employee-search-search-btn:hover {
-    background-color: #1d4ed8;
+    background: #3b5998;
+    color: white;
 }
 
 .employee-search-clear-btn {
-    padding: 0.5rem 1rem;
-    background-color: #f3f4f6;
-    color: #4b5563;
-    font-size: 0.875rem;
+    display: inline-block;
+    padding: 12px 24px;
+    background: transparent;
+    color: #8a9a9d; 
+    border: 2px solid #8a9a9d;
+    border-radius: 8px;
+    font-size: 15px;
     font-weight: 600;
-    border-radius: 0.5rem;
-    white-space: nowrap;
+    cursor: pointer;
     text-align: center;
     text-decoration: none;
+    white-space: nowrap; 
+    transition: all 0.2s ease;
+    box-sizing: border-box;
 }
 
 .employee-search-clear-btn:hover {
-    background-color: #e5e7eb;
+    background: #8a9a9d;
+    color: white;
 }
 
+/* 対象件数の表示エリア */
 .employee-search-summary {
-    margin-top: 1rem;
+    display: block;
+    border-top: 1px solid #f3f4f6; 
+    padding-top: 16px;
+    margin-top: 8px;
     font-size: 0.875rem;
     color: #4b5563;
-    text-align: center;
 }
 
 .employee-search-summary-num {
     font-weight: 700;
+    font-size: 1.125rem;
     color: #1f2937;
-    font-size: 1rem;
-}
-
-.employee-search-table {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
-    min-width: 800px;
-}
-
-.employee-search-th {
-    padding: 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #4b5563;
-    text-align: center;
-    background-color: rgba(249, 250, 251, 0.75);
-    border-bottom: 1px solid #f3f4f6;
-}
-
-.employee-search-row {
-    border-bottom: 1px solid #f3f4f6;
-    height: 3.5rem;
-}
-
-.employee-search-row:hover {
-    background-color: rgba(249, 250, 251, 0.6);
-}
-
-.employee-search-td {
-    padding: 0.75rem;
-    font-size: 0.875rem;
-    color: #4b5563;
-    text-align: center;
-    vertical-align: middle;
-}
-
-.employee-search-td-name {
-    color: #1f2937;
-    font-weight: 600;
-}
-
-.employee-search-td-truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.employee-badge {
-    display: inline-block;
-    padding: 0.25rem 0.6rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-
-.employee-badge-admin { background-color: #dbeafe; color: #1d4ed8; }
-.employee-badge-general { background-color: #f3f4f6; color: #6b7280; }
-
-.employee-search-empty {
-    padding: 1.5rem;
-    text-align: center;
-    color: #9ca3af;
-}
-
-.employee-search-pagination {
-    padding: 1rem;
-    display: flex;
-    justify-content: center;
+    margin: 0 4px;
 }
