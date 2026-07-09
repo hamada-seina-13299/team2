@@ -23,7 +23,7 @@
             </button>
 
             <div class="header-dropdown-menu">
-                <a href="#" class="header-dropdown-menu-item">オプション</a>
+                <a href="#" class="header-dropdown-menu-item modal-trigger" data-target="sky-option-modal" id="sky-option-open-btn">オプション</a>
                 <a href="#" class="header-dropdown-menu-item">メール通知設定</a>
                 <a href="#" class="header-dropdown-menu-item">パスワード変更</a>
                 <form method="POST" action="{{ route('logout') }}">
@@ -100,6 +100,44 @@
         </div>
         <div class="modal-footer">
             <button class="modal-action-btn">確認して閉じる</button>
+        </div>
+    </div>
+</div>
+
+<div id="sky-option-modal" class="modal-overlay">
+    <div class="modal-window modal-window--auto">
+        <div class="modal-header">
+            <h3>🌤️ 背景の時間帯設定</h3>
+            <button class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>ダッシュボードの背景の空を、好きな時間帯に固定できます。「自動」を選ぶと、実際の現在時刻に合わせて自動で切り替わります。</p>
+
+            <div class="sky-option-list">
+                <label class="sky-option-item">
+                    <input type="radio" name="sky_option" value="">
+                    <span class="sky-option-label">🕐 自動（現在時刻に合わせる）</span>
+                </label>
+                <label class="sky-option-item">
+                    <input type="radio" name="sky_option" value="sky-dawn">
+                    <span class="sky-option-label">🌅 モーニングフライト</span>
+                </label>
+                <label class="sky-option-item">
+                    <input type="radio" name="sky_option" value="sky-day">
+                    <span class="sky-option-label">☀️ アフタヌーンフライト</span>
+                </label>
+                <label class="sky-option-item">
+                    <input type="radio" name="sky_option" value="sky-dusk">
+                    <span class="sky-option-label">🌇 イブニングフライト</span>
+                </label>
+                <label class="sky-option-item">
+                    <input type="radio" name="sky_option" value="sky-night">
+                    <span class="sky-option-label">🌌 ナイトフライト</span>
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-action-btn" id="sky-option-save-btn">保存して閉じる</button>
         </div>
     </div>
 </div>

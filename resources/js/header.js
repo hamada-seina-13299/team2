@@ -121,3 +121,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// ==========================================================================
+// 🌤️ ダッシュボード背景「時間帯」設定
+// ==========================================================================
+// 選択内容は localStorage に保存し、dashboard-background.js 側がそれを読んで
+// 実際の空の色（sky-dawn / sky-day / sky-dusk / sky-night）に反映します。
+// 値が無い（=空文字）場合は「自動（現在時刻に合わせる）」として扱われます。
+document.addEventListener('DOMContentLoaded', () => {
+    const STORAGE_KEY = 'dashSkyOverride';
+
+    const openBtn = document.getElementById('sky-option-open-btn');
+    const modal = document.getElementById('sky-option-modal');
+    const saveBtn = document.getElementById('sky-option-save-btn');
+
+    if (!modal || !saveBtn) return;
+
+    // モーダルを開いた瞬間、現在保存されている設定にラジオボタンを合わせる
+    if (openBtn) {
+        openBtn.addEventListener('click', () => {
+            const current = localStorage.getItem(STORAGE_KEY) || '';
+            modal.querySelectorAll('input[name="sky_option"]').forEach((radio) => {
+                radio.checked = (radio.value === current);
+            });
+        });
+    }
+
+    // 保存ボタン：選択値を保存し、開いていればダッシュボードの空にも即座に反映する
+    // ※モーダルを閉じる処理自体は、上の汎用モーダルシステム（.modal-action-btn）が担当
+    saveBtn.addEventListener('click', () => {
+        const selected = modal.querySelector('input[name="sky_option"]:checked');
+        const value = selected ? selected.value : '';
+
+        if (value) {
+            localStorage.setItem(STORAGE_KEY, value);
+        } else {
+            localStorage.removeItem(STORAGE_KEY); // 「自動」が選ばれた場合は保存値を削除
+        }
+
+        // 同じページ内にダッシュボードの空(dashboard-background.js)がいれば、即座に切り替える
+        window.dispatchEvent(new CustomEvent('dash-sky-preference-changed'));
+    });
+});

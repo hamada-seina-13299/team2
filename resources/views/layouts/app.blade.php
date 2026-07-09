@@ -118,11 +118,23 @@
             var overlay = document.getElementById('dash-loading-overlay');
             if (!overlay) return;
 
+            var hideTimer = null;
+
             function hideOverlay() {
                 overlay.classList.add('is-hidden');
+                if (hideTimer) {
+                    clearTimeout(hideTimer);
+                    hideTimer = null;
+                }
             }
             function showOverlay() {
                 overlay.classList.remove('is-hidden');
+
+                // 🛡️ 安全策：Ajaxなどで実際にはページ遷移しないケースもあるため、
+                // 一定時間たっても load イベントが来なければ自動で消す
+                // （遷移する場合は hideOverlay() が load 側で先に呼ばれるので実害なし）
+                if (hideTimer) clearTimeout(hideTimer);
+                hideTimer = setTimeout(hideOverlay, 6000);
             }
 
             // ページの読み込みが完了したら消す
@@ -134,9 +146,14 @@
             });
 
             // フォーム送信で別ページへ遷移する瞬間に再表示する
+            // ⚠️ ここは「バブリングフェーズ」で拾うのが重要。
+            // キャプチャフェーズ（第3引数 true）だと、送信対象自身の submit ハンドラ
+            // （confirm()や、Ajax化のための e.preventDefault()）より“先に”実行されてしまい、
+            // e.defaultPrevented が正しく判定できず、Ajax送信や確認ダイアログでキャンセルした
+            // 場合でもオーバーレイが表示されっぱなしになるバグの原因になっていた。
             document.addEventListener('submit', function (e) {
                 if (!e.defaultPrevented) showOverlay();
-            }, true);
+            });
 
             // 通常のリンククリックで別ページへ遷移する瞬間に再表示する
             document.addEventListener('click', function (e) {
@@ -148,6 +165,10 @@
                 if (link.target === '_blank' || !href || href.startsWith('#') || href.startsWith('javascript:')) {
                     return;
                 }
+                // 他のスクリプトが Ajax化のために既に e.preventDefault() している場合は
+                // 実際にはページ遷移しないので、オーバーレイを表示しない
+                if (e.defaultPrevented) return;
+
                 showOverlay();
             });
         })();
