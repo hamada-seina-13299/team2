@@ -12,7 +12,9 @@ class AttendanceRequest extends Model
         'request_type',
         'memo',
         'request_time',
-        'attachment'
+        'attachment',
+        'status',
+        'updater_name',
     ];
 
     // 💡 承認画面で $attendanceRequest->user->name / dept を使うために追加

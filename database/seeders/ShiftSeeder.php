@@ -42,7 +42,7 @@ class ShiftSeeder extends Seeder
 
         $this->seedRandomRange(
             $allUsers,
-            Carbon::today()->subDays(40),
+            Carbon::today()->subDays(39),
             Carbon::today()->addDays(22),
             $masters
         );
@@ -252,6 +252,8 @@ class ShiftSeeder extends Seeder
             'attendance' => $attendanceTime->format('H:i:s'),
             'leaving' => $leavingTime->format('H:i:s'),
             'commute' => $this->commuteFor($user),
+            'break_time' => '12:00:00',
+            'break_end_time' => '13:00:00',
             'status' => '未申請',
         ]);
     }
@@ -263,7 +265,7 @@ class ShiftSeeder extends Seeder
     {
         if (!isset($this->userCommuteFares[$user->id])) {
             $this->userCommuteFares[$user->id] = fake()->randomElement(
-                [150, 180, 210, 260, 320, 400, 480, 550, 620, 780, 900]
+                [350, 180, 210, 260, 320, 400, 480, 550, 620, 780, 900]
             );
         }
 

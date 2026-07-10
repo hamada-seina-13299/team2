@@ -10,6 +10,7 @@ use App\Models\Working;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Collection;
 
 class AttendanceController extends Controller
@@ -86,13 +87,57 @@ class AttendanceController extends Controller
         $summary['monthly_status'] = $submission->memo ?? '未申請';
         $summary['can_submit'] = $summary['monthly_status'] === '未申請' && $lastWorking && $lastWorking->leaving;
 
+        // 🔁 ダッシュボードと共有している打刻修正モーダル／勤怠申請モーダル（打刻に合わせるトグル）が
+        //    必要とするデータ。DashboardController@index と同じロジック。
+        //    月ではなく「ユーザーの全期間」のデータである点に注意（前日/翌日ナビゲーションのため）。
+        $allWorkingDates = DB::table('workings')
+            ->where('user_id', $user->id)
+            ->orderBy('punch_date', 'desc')
+            ->pluck('punch_date')
+            ->unique()
+            ->values()
+            ->all();
+
+        $allHistoryJson = json_encode(
+            DB::table('workings')
+                ->where('user_id', $user->id)
+                ->orderBy('punch_date', 'desc')
+                ->get()
+                ->map(function ($record) {
+                    return [
+                        'punch_date' => $record->punch_date,
+                        'attendance' => $record->attendance ? Carbon::parse($record->attendance)->format('H:i') : '',
+                        'leaving'    => $record->leaving ? Carbon::parse($record->leaving)->format('H:i') : '',
+                    ];
+                })
+                ->keyBy('punch_date')
+        );
+
+        $workingPlaces = DB::table('shift_masters')
+            ->where('user_id', $user->id)
+            ->orWhereNull('user_id')
+            ->pluck('working_place')
+            ->unique()
+            ->filter()
+            ->values()
+            ->all();
+
+        $correctionHistory = DB::table('working_corrections')
+            ->where('user_id', $user->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return view('attendance.attendance', [
-            'user'         => $user,
-            'calendar'     => $calendar,
-            'currentMonth' => $currentMonth,
-            'prevMonth'    => $prevMonth,
-            'nextMonth'    => $nextMonth,
-            'summary'      => $summary,
+            'user'               => $user,
+            'calendar'           => $calendar,
+            'currentMonth'       => $currentMonth,
+            'prevMonth'          => $prevMonth,
+            'nextMonth'          => $nextMonth,
+            'summary'            => $summary,
+            'allWorkingDates'    => $allWorkingDates,
+            'allHistoryJson'     => $allHistoryJson,
+            'workingPlaces'      => $workingPlaces,
+            'correctionHistory'  => $correctionHistory,
         ]);
     }
 
