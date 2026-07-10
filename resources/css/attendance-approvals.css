@@ -1,0 +1,676 @@
+/* ==========================================================================
+   勤怠申請 承認画面
+   デザイン原案：ネイビー×シャンパンゴールドのプレミアムトーン
+   ========================================================================== */
+
+.aa-app {
+    --aa-navy: #0b1d3a;
+    --aa-navy-mid: #163566;
+    --aa-navy-lt: #1e4a8c;
+    --aa-gold: #c9a86c;
+    --aa-gold-dim: rgba(201, 168, 108, 0.13);
+    --aa-bg: #edf2f8;
+    --aa-ink: 11, 29, 58;
+
+    box-sizing: border-box;
+    height: 100vh;
+    max-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 14px 40px 16px;
+    background: linear-gradient(135deg, var(--aa-bg) 0%, #dce8f4 100%);
+    font-family: 'Inter', -apple-system, sans-serif;
+    border-radius: 16px;
+}
+
+.aa-app *,
+.aa-app *::before,
+.aa-app *::after {
+    box-sizing: border-box;
+}
+
+/* ヘッダー */
+.aa-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.aa-eyebrow {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(var(--aa-ink), 0.42);
+    margin: 0 0 2px;
+}
+
+.aa-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--aa-navy);
+    margin: 0;
+}
+
+.aa-count {
+    color: var(--aa-gold);
+}
+
+.aa-back-link {
+    font-size: 13px;
+    color: var(--aa-navy-lt);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.aa-back-link:hover {
+    text-decoration: underline;
+}
+
+/* 直近の判定履歴ピル */
+.aa-history {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 24px;
+}
+
+.aa-history-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    animation: aaPillIn 0.25s ease-out;
+}
+
+.aa-history-pill.approved {
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+    border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.aa-history-pill.rejected {
+    background: rgba(239, 68, 68, 0.08);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+@keyframes aaPillIn {
+    from { opacity: 0; transform: translateY(-6px) scale(0.9); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* フラッシュメッセージ（JS未動作時のフォールバック用） */
+.aa-flash {
+    flex-shrink: 0;
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    margin-bottom: 18px;
+}
+.aa-flash-success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.aa-flash-error   { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
+/* ステージ全体（可変領域。ここが画面の余白を吸収し、縦スクロールを発生させない） */
+.aa-stage {
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 8px;
+}
+
+/* 空状態 */
+.aa-empty {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center; /* 追加 */
+    gap: 14px;
+
+    position: absolute;      /* 追加 */
+    inset: 0;                /* 追加 */
+}
+.aa-empty.is-visible {
+    display: flex;
+}
+
+.aa-empty-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--aa-gold-dim);
+    border: 1px solid rgba(201, 168, 108, 0.3);
+    color: var(--aa-gold);
+    font-size: 26px;
+}
+
+.aa-empty-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--aa-navy);
+    margin: 0;
+}
+
+.aa-empty-sub {
+    font-size: 14px;
+    color: rgba(var(--aa-ink), 0.38);
+    margin: 0;
+}
+
+/* 左右の却下／承認ゾーン */
+.aa-zone {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 128px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    pointer-events: none;
+    opacity: 0.18;
+    transition: opacity 0.1s ease;
+}
+
+.aa-zone-reject  { left: 0; }
+.aa-zone-approve { right: 0; }
+
+.aa-zone-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.aa-zone-icon-reject  { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.22); color: #ef4444; }
+.aa-zone-icon-approve { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.22); color: #22c55e; }
+
+.aa-zone-label { font-size: 12px; font-weight: 700; margin: 0; }
+.aa-zone-label-reject  { color: #ef4444; }
+.aa-zone-label-approve { color: #16a34a; }
+
+.aa-kbd {
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-family: monospace;
+}
+.aa-kbd-reject  { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); color: #dc2626; }
+.aa-kbd-approve { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.2); color: #16a34a; }
+
+/* カードスタック（vh基準の高さにして、常にステージ内に収まるようにする） */
+.aa-stack {
+    position: relative;
+    width: min(560px, 92vw);
+    height: 100%;
+    max-height: 560px;
+}
+
+.aa-card {
+    position: absolute;
+    inset: 0;
+    border-radius: 18px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid rgba(var(--aa-ink), 0.1);
+    box-shadow: 0 32px 80px rgba(var(--aa-ink), 0.2), 0 8px 24px rgba(var(--aa-ink), 0.08);
+    user-select: none;
+    touch-action: none;
+    will-change: transform, opacity;
+    /* デフォルトはスナップバック用のトランジション */
+    transition: transform 0.36s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+}
+
+/* 2枚目・3枚目（奥に控えるスタック）— JSがscale/translateYを付与するのでベースは軽めに */
+.aa-card.is-stacked {
+    box-shadow: 0 8px 32px rgba(var(--aa-ink), 0.08);
+    cursor: default;
+    transition: transform 0.28s ease, opacity 0.28s ease;
+}
+
+.aa-card.is-top {
+    cursor: grab;
+    z-index: 50;
+}
+
+.aa-card.is-top.is-dragging {
+    cursor: grabbing;
+    transition: none;
+}
+
+.aa-card.is-flying {
+    transition: transform 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.42s ease-in;
+}
+
+/* 判定オーバーレイ（色付きグラデーション） */
+.aa-card-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    border-radius: 18px;
+}
+.aa-card-overlay.approve {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.28), rgba(59, 130, 246, 0.18));
+}
+.aa-card-overlay.reject {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.24), rgba(220, 38, 38, 0.18));
+}
+
+/* 判定スタンプ */
+.aa-card-stamp {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 40;
+    padding: 4px 12px;
+    border-radius: 8px;
+    border: 2px solid;
+    font-size: 14px;
+    font-weight: 700;
+    opacity: 0;
+    pointer-events: none;
+}
+.aa-card-stamp.approve { border-color: #22c55e; color: #16a34a; transform: rotate(10deg); }
+.aa-card-stamp.reject  { border-color: #ef4444; color: #dc2626; transform: rotate(-10deg); }
+
+.aa-card-accent {
+    height: 3px;
+    background: linear-gradient(90deg, var(--aa-navy), var(--aa-navy-lt), var(--aa-gold));
+}
+
+/* 種別ごとのアクセントカラー（固定クラスで指定。Blade側でのインラインstyle展開は廃止） */
+.aa-card.type-late .aa-card-accent,
+.aa-card.type-early-leave .aa-card-accent {
+    background: linear-gradient(90deg, var(--aa-navy), #f59e0b, var(--aa-gold));
+}
+.aa-card.type-absent .aa-card-accent {
+    background: linear-gradient(90deg, var(--aa-navy), #ef4444, var(--aa-gold));
+}
+.aa-card.type-paid-leave .aa-card-accent,
+.aa-card.type-half-day .aa-card-accent {
+    background: linear-gradient(90deg, var(--aa-navy), #3b82f6, var(--aa-gold));
+}
+.aa-card.type-overtime .aa-card-accent {
+    background: linear-gradient(90deg, var(--aa-navy), #8b5cf6, var(--aa-gold));
+}
+.aa-card.type-emergency-late .aa-card-accent,
+.aa-card.type-emergency-early-leave .aa-card-accent {
+    background: linear-gradient(90deg, var(--aa-navy), #f97316, var(--aa-gold));
+}
+.aa-card.type-other .aa-card-accent {
+    background: linear-gradient(90deg, var(--aa-navy), #8b5cf6, var(--aa-gold));
+}
+
+.aa-card-body {
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - 3px);
+    padding: 24px 28px 20px;
+    overflow: hidden;
+}
+
+/* ヘッダー〜添付ボタンまでのエリア。内容が多い時はここだけが内部スクロールする。
+   操作ボタン(.aa-actions)はこの外側にあるため、何が起きても常に見える。 */
+.aa-card-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.aa-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.aa-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--aa-navy), var(--aa-navy-mid));
+    color: var(--aa-gold);
+}
+
+.aa-card-headtext { flex: 1; min-width: 0; }
+.aa-card-headtext h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--aa-navy);
+    margin: 0;
+    line-height: 1.3;
+}
+.aa-card-headtext p {
+    font-size: 12px;
+    color: rgba(var(--aa-ink), 0.45);
+    margin: 2px 0 0;
+}
+
+.aa-type-badge {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid;
+    white-space: nowrap;
+    /* デフォルト（未定義の種別用フォールバック） */
+    background: rgba(139, 92, 246, 0.09);
+    color: #8b5cf6;
+    border-color: rgba(139, 92, 246, 0.27);
+}
+
+/* 種別ごとのバッジカラー（固定クラスで指定） */
+.aa-card.type-late .aa-type-badge,
+.aa-card.type-early-leave .aa-type-badge {
+    background: rgba(245, 158, 11, 0.09); color: #f59e0b; border-color: rgba(245, 158, 11, 0.27);
+}
+.aa-card.type-absent .aa-type-badge {
+    background: rgba(239, 68, 68, 0.09); color: #ef4444; border-color: rgba(239, 68, 68, 0.27);
+}
+.aa-card.type-paid-leave .aa-type-badge,
+.aa-card.type-half-day .aa-type-badge {
+    background: rgba(59, 130, 246, 0.09); color: #3b82f6; border-color: rgba(59, 130, 246, 0.27);
+}
+.aa-card.type-overtime .aa-type-badge {
+    background: rgba(139, 92, 246, 0.09); color: #8b5cf6; border-color: rgba(139, 92, 246, 0.27);
+}
+.aa-card.type-emergency-late .aa-type-badge,
+.aa-card.type-emergency-early-leave .aa-type-badge {
+    background: rgba(249, 115, 22, 0.09); color: #f97316; border-color: rgba(249, 115, 22, 0.27);
+}
+
+.aa-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.aa-detail {
+    border-radius: 12px;
+    padding: 12px;
+    background: rgba(var(--aa-ink), 0.04);
+    border: 1px solid rgba(var(--aa-ink), 0.06);
+}
+.aa-detail p:first-child {
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(var(--aa-ink), 0.38);
+    margin: 0 0 4px;
+}
+.aa-detail p:last-child {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--aa-navy);
+    margin: 0;
+}
+
+.aa-reason {
+    border-radius: 12px;
+    padding: 14px;
+    background: rgba(var(--aa-ink), 0.04);
+    border: 1px solid rgba(var(--aa-ink), 0.06);
+    min-height: 72px;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 4px;
+}
+.aa-reason p:first-child {
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(var(--aa-ink), 0.38);
+    margin: 0 0 6px;
+}
+.aa-reason p:last-child {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--aa-navy);
+    margin: 0;
+    white-space: pre-line;
+}
+
+/* 添付ファイルボタン（<a>から<button>化に伴うリセット。クリックでモーダルを開く） */
+.aa-attachment {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    width: fit-content;
+    margin-top: 10px;
+    padding: 0;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--aa-navy-lt);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+.aa-attachment:hover { text-decoration: underline; }
+
+.aa-actions {
+    flex-shrink: 0;
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(var(--aa-ink), 0.06);
+}
+
+.aa-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 11px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: filter 0.15s ease;
+}
+.aa-btn:hover { filter: brightness(0.97); }
+
+.aa-btn-reject {
+    background: rgba(239, 68, 68, 0.07);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.18);
+}
+.aa-btn-approve {
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.3);
+}
+
+/* 操作ヒント */
+.aa-hint {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 14px;
+    font-size: 11px;
+    color: rgba(var(--aa-ink), 0.3);
+}
+.aa-hint kbd {
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: rgba(var(--aa-ink), 0.06);
+    border: 1px solid rgba(var(--aa-ink), 0.1);
+    font-family: monospace;
+    font-size: 10px;
+}
+
+/* 取り消しトースト */
+.aa-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--aa-navy);
+    color: #fff;
+    padding: 12px 16px 12px 20px;
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(11, 29, 58, 0.35);
+    font-size: 13px;
+    z-index: 200;
+    animation: aaToastIn 0.25s ease-out;
+}
+@keyframes aaToastIn {
+    from { opacity: 0; transform: translate(-50%, 10px); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.aa-toast-undo {
+    background: var(--aa-gold);
+    color: var(--aa-navy);
+    border: none;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+/* 添付ファイル ポップアップ（モーダル） */
+.aa-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    align-items: center;
+    justify-content: center;
+    background: rgba(11, 29, 58, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 32px;
+}
+.aa-modal-overlay.is-open { display: flex; }
+
+.aa-modal {
+    position: relative;
+    width: min(640px, 90vw);
+    max-height: 84vh;
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid rgba(201, 168, 108, 0.35);
+    border-radius: 18px;
+    box-shadow: 0 32px 80px rgba(11, 29, 58, 0.4);
+    padding: 28px 24px 24px;
+    overflow-y: auto;
+    animation: aaModalIn 0.22s ease-out;
+}
+@keyframes aaModalIn {
+    from { opacity: 0; transform: scale(0.96) translateY(8px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.aa-modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    border: none;
+    background: rgba(11, 29, 58, 0.06);
+    color: var(--aa-navy);
+    font-size: 14px;
+    cursor: pointer;
+}
+.aa-modal-close:hover { background: rgba(11, 29, 58, 0.12); }
+
+.aa-modal-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    margin-top: 8px;
+}
+
+.aa-modal-image {
+    max-width: 100%;
+    max-height: 56vh;
+    border-radius: 12px;
+    object-fit: contain;
+}
+.aa-modal-iframe {
+    width: 100%;
+    height: 56vh;
+    border: 1px solid rgba(11, 29, 58, 0.1);
+    border-radius: 12px;
+}
+.aa-modal-filename {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--aa-navy);
+}
+.aa-modal-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 24px 16px;
+}
+.aa-modal-error-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #dc2626;
+    margin: 0;
+}
+.aa-modal-error-sub {
+    font-size: 12px;
+    color: rgba(var(--aa-ink), 0.45);
+    margin: 0;
+}
+.aa-modal-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    background: var(--aa-navy);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+}
+.aa-modal-download:hover { filter: brightness(1.1); }
+
+@media (max-width: 640px) {
+    .aa-app { padding: 16px; }
+    .aa-stack { width: 100%; height: 100%; max-height: 560px; }
+    .aa-zone { width: 64px; }
+    .aa-modal { padding: 24px 18px 18px; }
+}

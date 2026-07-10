@@ -60,10 +60,13 @@ class AttendanceRequestApprovalController extends Controller
             'updater_name' => Auth::user()->name,
         ]);
 
-        return back()->with(
-            'success',
-            "{$attendanceRequest->user->name}さんの{$attendanceRequest->target_date}分の勤怠申請を承認しました。"
-        );
+        $message = "{$attendanceRequest->user->name}さんの{$attendanceRequest->target_date}分の勤怠申請を承認しました。";
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'message' => $message]);
+        }
+
+        return back()->with('success', $message);
     }
 
     /**
@@ -76,7 +79,13 @@ class AttendanceRequestApprovalController extends Controller
         $this->ensureAdmin();
 
         if ($attendanceRequest->status === '承認') {
-            return back()->with('error', '承認済みの申請は却下できません。');
+            $message = '承認済みの申請は却下できません。';
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+
+            return back()->with('error', $message);
         }
 
         $attendanceRequest->update([
@@ -84,9 +93,35 @@ class AttendanceRequestApprovalController extends Controller
             'updater_name' => Auth::user()->name,
         ]);
 
-        return back()->with(
-            'success',
-            "{$attendanceRequest->user->name}さんの{$attendanceRequest->target_date}分の勤怠申請を却下しました。"
-        );
+        $message = "{$attendanceRequest->user->name}さんの{$attendanceRequest->target_date}分の勤怠申請を却下しました。";
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'message' => $message]);
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * 💡 スワイプUIには確認ダイアログが無いため、誤操作からのリカバリー用に
+     *    直前の承認/却下を「申請中」に戻す取り消し操作を用意しておく。
+     *    workingsテーブル等への波及がない申請フローなので、単純にstatusを戻すだけでよい。
+     */
+    public function undo(Request $request, AttendanceRequest $attendanceRequest)
+    {
+        $this->ensureAdmin();
+
+        $attendanceRequest->update([
+            'status'       => '申請中',
+            'updater_name' => null,
+        ]);
+
+        $message = "{$attendanceRequest->user->name}さんの{$attendanceRequest->target_date}分の勤怠申請の処理を取り消しました。";
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'message' => $message]);
+        }
+
+        return back()->with('success', $message);
     }
 }

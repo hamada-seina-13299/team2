@@ -23,4 +23,5 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/attendance-requests', [AttendanceRequestApprovalController::class, 'index'])->name('attendance.approvals.index');
     Route::post('/reports/attendance-requests/{attendanceRequest}/approve', [AttendanceRequestApprovalController::class, 'approve'])->name('attendance.approvals.approve');
     Route::post('/reports/attendance-requests/{attendanceRequest}/reject', [AttendanceRequestApprovalController::class, 'reject'])->name('attendance.approvals.reject');
+    Route::post('/reports/attendance-requests/{attendanceRequest}/undo', [AttendanceRequestApprovalController::class, 'undo'])->name('attendance.approvals.undo');
 });
