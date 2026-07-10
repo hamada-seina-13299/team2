@@ -1,6 +1,25 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+    {{-- 🎨 ダーク/ライトモードの判定。CSSより前、head内で一番最初に実行することで
+         「一瞬ライトモードで表示されてから切り替わる」ちらつき(FOUC)を防ぐ --}}
+    <script>
+        (function () {
+            var mode = localStorage.getItem('themeMode') || 'light';
+            var isDark;
+
+            if (mode === 'dark') {
+                isDark = true;
+            } else if (mode === 'auto') {
+                var hour = new Date().getHours();
+                isDark = (hour < 6 || hour >= 19); // 自動：19時〜翌6時をダーク扱いにする
+            } else {
+                isDark = false;
+            }
+
+            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', '勤怠管理システム')</title>
@@ -8,6 +27,7 @@
         'resources/css/dashboard.css', 
         'resources/css/sidebar.css', 
         'resources/css/header.css', 
+        'resources/css/dark-mode.css',
         'resources/js/dashboard.js',
         'resources/js/header.js'
     ])
@@ -61,7 +81,7 @@
         }
     </style>
 </head>
-<body>
+<body class="@yield('body-class')">
     {{-- 🌅 時刻連動の空＋出退勤の離着陸演出用レイヤー
          ※ body直下（.wrapperの外）に置くのが重要：ネストして置くと、
             position指定の無い通常のカード要素より前面に出てしまい、
@@ -71,6 +91,7 @@
     <div id="dash-sky-bg" class="{{ (isset($latestOpenAttendance) && $latestOpenAttendance) ? 'state-flying' : 'state-ground' }}">
         <div class="dash-window-glass">
             <div class="dash-sky-inner">
+                <div class="dash-sun"></div>
                 <div class="dash-ground-scene">
                     <div class="dash-ground"></div>
                     <div class="dash-runway"></div>

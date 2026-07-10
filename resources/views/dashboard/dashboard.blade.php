@@ -2,6 +2,8 @@
 
 @section('title', 'タイムカード | 勤怠管理')
 
+@section('body-class', 'has-sky-bg')
+
 @section('content')
 
 <!-- 上部固定の動的エラーアラート用コンテナ -->
@@ -154,7 +156,7 @@ $groupedHistory = $history->groupBy('punch_date');
 
 @forelse($groupedHistory as $date => $records)
 <div class="date-line">{{ \Carbon\Carbon::parse($date)->isoFormat('YYYY年M月D日(ddd)') }}</div>
-<div style="background-color: #fff; padding: 15px 30px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+<div class="history-card" style="background-color: #fff; padding: 15px 30px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
     @foreach($records as $record)
     @php
     $dateLabel = \Carbon\Carbon::parse($record->punch_date)->isoFormat('YYYY年M月D日(ddd)');

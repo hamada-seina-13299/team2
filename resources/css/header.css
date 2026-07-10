@@ -233,6 +233,27 @@
     background-color: #1eb3b1;
 }
 
+/* .modal-action-btn と見た目は同じだが、汎用モーダルシステムの自動クローズ対象にはしたくないボタン用
+   （バリデーションエラー時に即座に閉じてしまうのを防ぐため、パスワード変更モーダルなどで使用） */
+.modal-action-btn-style {
+    border: none;
+    background-color: #26d0ce;
+    color: #ffffff;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.modal-action-btn-style:hover {
+    background-color: #1eb3b1;
+}
+.modal-action-btn-style:disabled {
+    background-color: #a0e4e3;
+    cursor: not-allowed;
+}
+
 /* コンテンツが短いモーダル用：固定の75vhをやめて内容に合わせた高さにする */
 .modal-window--auto {
     height: auto;
@@ -281,4 +302,88 @@
     font-size: 14px;
     font-weight: bold;
     color: #333333;
+}
+
+/* オプションモーダル内のセクション見出し（表示モード／背景の時間帯・天候） */
+.option-section-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: #333333;
+    margin-bottom: 4px;
+}
+.option-section-desc {
+    font-size: 12px;
+    color: #7f8c8d;
+    margin: 0 0 4px;
+}
+
+/* ==========================================================================
+   🔔 お知らせ一覧
+   ========================================================================== */
+.notice-placeholder {
+    text-align: center;
+    padding: 36px 10px;
+    color: #9ca3af;
+    font-size: 13px;
+}
+
+.notice-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.notice-table th {
+    background-color: #d9f4f0;
+    color: #1f2937;
+    font-weight: bold;
+    text-align: left;
+    padding: 10px 12px;
+    white-space: nowrap;
+}
+
+.notice-table td {
+    padding: 12px;
+    border-bottom: 1px solid #f0f2f4;
+    vertical-align: middle;
+    color: #333333;
+}
+
+.notice-table tbody tr:nth-child(even) {
+    background-color: #fafcfc;
+}
+
+.notice-nowrap {
+    white-space: nowrap;
+}
+
+/* カテゴリバッジ（参考画像の黄色系配色に合わせている） */
+.notice-category-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+.notice-badge-alert   { background-color: #ffe066; color: #6b5900; }
+.notice-badge-system  { background-color: #fff6c9; color: #8a7a1a; }
+.notice-badge-payslip { background-color: #dceefe; color: #1d5fa8; }
+
+/* 給与明細の「確認する」ボタン */
+.notice-action-btn {
+    background-color: #ffffff;
+    border: 1px solid #26d0ce;
+    color: #26d0ce;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+.notice-action-btn:hover {
+    background-color: #26d0ce;
+    color: #ffffff;
 }

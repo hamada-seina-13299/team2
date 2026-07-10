@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\WorkingCorrectionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\MyDataController;
+use App\Http\Controllers\NoticeController;
 use Illuminate\Support\Facades\Route;
     
 
@@ -25,3 +27,8 @@ Route::post('/dashboard/break-in', [DashboardController::class, 'breakIn'])->nam
 Route::post('/dashboard/toggle-auto-break', [DashboardController::class, 'toggleAutoBreak'])->name('user.toggle_auto_break');
 //修正申請のキャンセル
 Route::post('/dashboard/correction/{id}/cancel', [WorkingCorrectionController::class, 'cancelCorrection'])->name('clock.correction.cancel');
+
+
+Route::get('/mydata', [MyDataController::class, 'index'])->name('mydata');
+
+Route::get('/notices', [NoticeController::class, 'index'])->name('notices.index');
