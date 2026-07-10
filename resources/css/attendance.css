@@ -81,6 +81,18 @@
     border-color: #12b3ab;
 }
 
+/* 申請の削除ボタン（.custom-stamp-edit-btnの赤バリエーション） */
+.custom-stamp-delete-btn {
+    background-color: #fdeef0;
+    border-color: #f8d0d6;
+    color: #d64b5f;
+}
+.custom-stamp-delete-btn:hover {
+    background-color: #d64b5f;
+    color: #ffffff;
+    border-color: #d64b5f;
+}
+
 /* ✨ カードの右下に大きなアクションボタンを配置するためのエリア指定 */
 .attendance-card-footer-action {
     display: flex;

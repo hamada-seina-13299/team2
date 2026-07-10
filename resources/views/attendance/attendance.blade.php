@@ -172,6 +172,11 @@
                         $breakDurationMinutes = \Carbon\Carbon::parse('00:00')->diffInMinutes(\Carbon\Carbon::parse($master->break_time));
                         $breakEnd = $breakStart->copy()->addMinutes($breakDurationMinutes);
                         }
+
+                        // 遅刻・早退の申請が既に出されているかどうか（出されていれば「申」表示・黄色枠にする）
+                        $dayRequests = $row['requests'] ?? collect();
+                        $hasLateRequest = collect($dayRequests)->contains(fn($r) => in_array($r->request_type, ['遅刻', '有事遅刻']));
+                        $hasEarlyRequest = collect($dayRequests)->contains(fn($r) => in_array($r->request_type, ['早退', '有事早退']));
                         @endphp
                         <tr class="{{ $rowClass }}">
                             <td class="col-date">
@@ -182,31 +187,41 @@
                             </td>
                             <td>
                                 <div class="action-buttons-cell" style="display: flex; gap: 6px; align-items: center;">
-                                    <button type="button" class="custom-stamp-edit-btn js-stamp-edit-btn"
+                                    {{-- 🕒 打刻修正：ダッシュボードの打刻修正モーダル(#fix-modal-overlay)を開く --}}
+                                    <button type="button" class="custom-stamp-edit-btn btn-edit-trigger"
                                         data-date="{{ $date->format('Y-m-d') }}"
+                                        data-date-label="{{ $date->isoFormat('YYYY年M月D日(ddd)') }}"
                                         data-attendance="{{ $w && $w->attendance ? \Carbon\Carbon::parse($w->attendance)->format('H:i') : '' }}"
                                         data-leaving="{{ $w && $w->leaving ? \Carbon\Carbon::parse($w->leaving)->format('H:i') : '' }}"
-                                        data-break="{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}">
+                                        data-break="{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}"
+                                        data-break-out="{{ $w->break_out ?? '' }}"
+                                        data-place="{{ $master->working_place ?? '' }}">
                                         🕒
                                     </button>
-                                    <button type="button" class="custom-stamp-edit-btn js-stamp-edit-btn"
-                                        data-date="{{ $date->format('Y-m-d') }}"
-                                        data-attendance="{{ $w && $w->attendance ? \Carbon\Carbon::parse($w->attendance)->format('H:i') : '' }}"
-                                        data-leaving="{{ $w && $w->leaving ? \Carbon\Carbon::parse($w->leaving)->format('H:i') : '' }}"
-                                        data-break="{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}">
+                                    {{-- ✏️ 勤怠申請：ダッシュボードの勤怠申請モーダル(#attendance-request-modal-overlay)を開く --}}
+                                    <button type="button" class="custom-stamp-edit-btn btn-attendance-request-row"
+                                        data-date="{{ $date->format('Y-m-d') }}">
                                         ✏️
                                     </button>
                                 </div>
                             </td>
                             <td>
                                 @if($isLate)
+                                @if($hasLateRequest)
+                                <span class="late-badge is-requested" style="background:#fff9db; color:#8a6d00; padding:2px 4px; border-radius:3px; font-size:11px; margin-right:2px; font-weight:bold; border:1px solid #f2c94c;">申</span>
+                                @else
                                 <span class="late-badge" style="background:#ffecec; color:#d64b5f; padding:2px 4px; border-radius:3px; font-size:11px; margin-right:2px; font-weight:bold;">遅</span>
+                                @endif
                                 @endif
                                 {{ $displayAttendance }}
                             </td>
                             <td>
                                 @if($isEarly)
+                                @if($hasEarlyRequest)
+                                <span class="early-badge is-requested" style="background:#fff9db; color:#8a6d00; padding:2px 4px; border-radius:3px; font-size:11px; margin-right:2px; font-weight:bold; border:1px solid #f2c94c;">申</span>
+                                @else
                                 <span class="early-badge" style="background:#fff4ec; color:#e67e22; padding:2px 4px; border-radius:3px; font-size:11px; margin-right:2px; font-weight:bold;">早</span>
+                                @endif
                                 @endif
                                 {{ $displayLeaving }}
                             </td>
@@ -281,6 +296,9 @@
                         if (in_array($req->request_type, ['欠勤', '有給', '半休'])) { $otherDeduction = $req->request_type; }
                         }
 
+                        $hasLateRequest = collect($requests)->contains(fn($r) => in_array($r->request_type, ['遅刻', '有事遅刻']));
+                        $hasEarlyRequest = collect($requests)->contains(fn($r) => in_array($r->request_type, ['早退', '有事早退']));
+
                         $breakStart = null; $breakEnd = null; $breakDurationMinutes = null;
                         if ($w && $w->leaving && $master && $master->break_start_time && $master->break_time) {
                         $breakStart = \Carbon\Carbon::parse($master->break_start_time);
@@ -293,34 +311,31 @@
                             <td>{{ $dayType }}</td>
                             <td>
                                 <div class="action-buttons-cell" style="display: flex; gap: 6px; align-items: center;">
-                                    <button type="button" class="custom-stamp-edit-btn js-stamp-edit-btn"
+                                    {{-- 🕒 打刻修正：ダッシュボードの打刻修正モーダル(#fix-modal-overlay)を開く --}}
+                                    <button type="button" class="custom-stamp-edit-btn btn-edit-trigger"
                                         data-date="{{ $date->format('Y-m-d') }}"
+                                        data-date-label="{{ $date->isoFormat('YYYY年M月D日(ddd)') }}"
                                         data-attendance="{{ $w && $w->attendance ? \Carbon\Carbon::parse($w->attendance)->format('H:i') : '' }}"
                                         data-leaving="{{ $w && $w->leaving ? \Carbon\Carbon::parse($w->leaving)->format('H:i') : '' }}"
-                                        data-break="{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}">
+                                        data-break="{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}"
+                                        data-break-out="{{ $w->break_out ?? '' }}"
+                                        data-place="{{ $master->working_place ?? '' }}">
                                         🕒
                                     </button>
-                                    <button type="button" class="custom-stamp-edit-btn js-stamp-edit-btn"
-                                        data-date="{{ $date->format('Y-m-d') }}"
-                                        data-attendance="{{ $w && $w->attendance ? \Carbon\Carbon::parse($w->attendance)->format('H:i') : '' }}"
-                                        data-leaving="{{ $w && $w->leaving ? \Carbon\Carbon::parse($w->leaving)->format('H:i') : '' }}"
-                                        data-break="{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}">
+                                    {{-- ✏️ 勤怠申請：ダッシュボードの勤怠申請モーダル(#attendance-request-modal-overlay)を開く --}}
+                                    <button type="button" class="custom-stamp-edit-btn btn-attendance-request-row"
+                                        data-date="{{ $date->format('Y-m-d') }}">
                                         ✏️
                                     </button>
 
                                     @if($requests->count() > 0)
                                     @foreach($requests as $req)
-                                    <button type="button" class="icon-btn js-edit-btn"
-                                        data-id="{{ $req->id }}"
-                                        data-date="{{ $date->format('Y-m-d') }}"
-                                        data-type="{{ $req->request_type }}"
-                                        data-time="{{ $req->request_time ? \Carbon\Carbon::parse($req->request_time)->format('H:i') : '' }}"
-                                        data-memo="{{ $req->memo }}">✏️</button>
+                                    {{-- 申請の削除のみ。編集は上の✏️（ダッシュボードの勤怠申請モーダル）に一本化したため削除 --}}
                                     <form action="{{ route('attendance.destroy', $req->id) }}" method="POST"
                                         class="inline-form js-delete-form">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="icon-btn" title="削除">🗑️</button>
+                                        <button type="submit" class="custom-stamp-edit-btn custom-stamp-delete-btn" title="この申請を削除">🗑️</button>
                                     </form>
                                     @endforeach
                                     @endif
@@ -329,12 +344,24 @@
                             <td>@if($master){{ $master->name ?? '' }}@endif</td>
                             <td>
                                 @if($w && $w->attendance)
-                                @if($lateTime)<span class="late-badge" style="background:#ffecec; color:#d64b5f; padding:2px 4px; border-radius:3px; font-size:11px; margin-right:2px;">遅</span>@endif{{ \Carbon\Carbon::parse($w->attendance)->format('H:i') }}
+                                @if($lateTime)
+                                    @if($hasLateRequest)
+                                    <span class="late-badge is-requested" style="background:#fff9db; color:#8a6d00; padding:2px 4px; border-radius:3px; font-size:11px; margin-right:2px; border:1px solid #f2c94c;">申</span>
+                                    @else
+                                    <span class="late-badge" style="background:#ffecec; color:#d64b5f; padding:2px 4px; border-radius:3px; font-size:11px; margin-right:2px;">遅</span>
+                                    @endif
+                                @endif{{ \Carbon\Carbon::parse($w->attendance)->format('H:i') }}
                                 @endif
                             </td>
                             <td>
                                 @if($w && $w->leaving)
-                                @if($earlyLeaveTime)<span class="early-badge" style="background:#fff4ec; color:#e67e22; padding:2px 4px; border-radius:3px; font-size:11px; margin-right:2px;">早</span>@endif{{ \Carbon\Carbon::parse($w->leaving)->format('H:i') }}
+                                @if($earlyLeaveTime)
+                                    @if($hasEarlyRequest)
+                                    <span class="early-badge is-requested" style="background:#fff9db; color:#8a6d00; padding:2px 4px; border-radius:3px; font-size:11px; margin-right:2px; border:1px solid #f2c94c;">申</span>
+                                    @else
+                                    <span class="early-badge" style="background:#fff4ec; color:#e67e22; padding:2px 4px; border-radius:3px; font-size:11px; margin-right:2px;">早</span>
+                                    @endif
+                                @endif{{ \Carbon\Carbon::parse($w->leaving)->format('H:i') }}
                                 @endif
                             </td>
                             <td>{{ $breakStart ? $breakStart->format('H:i') : '' }}</td>
@@ -376,6 +403,8 @@
         </div>
     </div>
 </div>
+
+@include('partials.dashboard-modals')
 
 @endsection
 

@@ -407,71 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 emptyRow.style.display = 'none';
             }
         }
-        checkFormChanges();
         updatePrevNextButtons();
-    }
-
-    // フォームの変更を検知して「申請」ボタンの有効・無効を切り替える関数
-    function checkFormChanges() {
-        const submitBtn = fixForm.querySelector('.btn-submit-modal');
-        if (!submitBtn) return;
-
-        // 1. 動的に追加された行（追加打刻など）が1つでもあるかチェック
-        const hasDynamicRows = tbody.querySelectorAll('.dynamic-row').length > 0;
-        if (hasDynamicRows) {
-            submitBtn.disabled = false;
-            submitBtn.classList.add('active');
-            return;
-        }
-
-        // 2. 各入力枠の変更チェック
-        let isChanged = false;
-
-        // 固定枠（出勤・退勤）とそれぞれの理由、チェックボックス
-        const attTime = elements.attTime;
-        const leaveTime = elements.leavingTime;
-        const attReason = elements.attReason;
-        const leaveReason = elements.leavingReason;
-
-        // 休憩開始・終了行の取得
-        const staticBreakInRow = tbody.querySelector('#row-static-break-in');
-        const staticBreakOutRow = tbody.querySelector('#row-static-break-out');
-
-        // 初期値（data-init）と比較、または理由が入力されているかチェック
-        if (attTime && attTime.value !== attTime.getAttribute('data-init')) isChanged = true;
-        if (leaveTime && leaveTime.value !== leaveTime.getAttribute('data-init')) isChanged = true;
-        if (attReason && attReason.value.trim() !== '') isChanged = true;
-        if (leaveReason && leaveReason.value.trim() !== '') isChanged = true;
-
-        if (elements.deleteAtt && elements.deleteAtt.checked) isChanged = true;
-        if (elements.deleteLeaving && elements.deleteLeaving.checked) isChanged = true;
-
-        if (staticBreakInRow) {
-            const bInTime = staticBreakInRow.querySelector('#modal-break-time');
-            const bInReason = staticBreakInRow.querySelector('#modal-break-reason');
-            const bInDelete = staticBreakInRow.querySelector('input[name="delete_break"]');
-            if (bInTime && bInTime.value !== bInTime.getAttribute('data-init')) isChanged = true;
-            if (bInReason && bInReason.value.trim() !== '') isChanged = true;
-            if (bInDelete && bInDelete.checked) isChanged = true;
-        }
-
-        if (staticBreakOutRow) {
-            const bOutTime = staticBreakOutRow.querySelector('#modal-break-out-time');
-            const bOutReason = staticBreakOutRow.querySelector('#modal-break-out-reason');
-            const bOutDelete = staticBreakOutRow.querySelector('input[name="delete_break_out"]');
-            if (bOutTime && bOutTime.value !== bOutTime.getAttribute('data-init')) isChanged = true;
-            if (bOutReason && bOutReason.value.trim() !== '') isChanged = true;
-            if (bOutDelete && bOutDelete.checked) isChanged = true;
-        }
-
-        // 変更の有無でボタンを切り替える
-        if (isChanged) {
-            submitBtn.disabled = false;
-            submitBtn.classList.add('active');
-        } else {
-            submitBtn.disabled = true;
-            submitBtn.classList.remove('active');
-        }
     }
 
     //モーダルを開いた瞬間に対象日のみの履歴にフィルタリングするよう修正
@@ -511,23 +447,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnPrev) {
         btnPrev.addEventListener('click', () => {
             currentDataIndex < availableDates.length - 1 && loadDateDataByIndex(currentDataIndex + 1);
-
+            
             const newTargetDate = availableDates[currentDataIndex];
             filterCorrectionHistoryByDate(newTargetDate);
         });
     }
-    if (btnNext) {
+    if (btnNext){
         btnNext.addEventListener('click', () => {
             currentDataIndex > 0 && loadDateDataByIndex(currentDataIndex - 1)
             const newTargetDate = availableDates[currentDataIndex];
             filterCorrectionHistoryByDate(newTargetDate)
         });
     }
+         
 
-    btnAddRow.addEventListener('click', () => {
-        createDynamicRow();
-        checkFormChanges(); // 行が増えたのでボタンを有効化させる
-    });
+
+
+    btnAddRow.addEventListener('click', () => createDynamicRow());
 
     modalOverlay.querySelectorAll('.watch-change, .reason-input').forEach(field => {
         field.addEventListener('input', checkFormValidation);
@@ -538,15 +474,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!checkFormValidation()) {
             e.preventDefault();
             alert('未入力の必須項目、または申請理由が不足している項目があります。');
-        }
-    });
-
-    fixForm.addEventListener('input', checkFormChanges);
-    fixForm.addEventListener('change', checkFormChanges);
-    tbody.addEventListener('click', (e) => {
-        if (e.target.classList.contains('btn-row-delete')) {
-            // 行が削除された直後にボタン状態を再判定
-            setTimeout(checkFormChanges, 0);
         }
     });
 
@@ -633,9 +560,9 @@ document.addEventListener('DOMContentLoaded', () => {
     sessionAlerts.forEach(alert => {
         if (alert.id === 'dynamic-flash-error') return;
         const bg = alert.style.backgroundColor;
-
+        
         if (
-            bg.includes('rgb(209, 250, 229)') || bg.includes('rgb(254, 226, 226)') || bg.includes('rgb(254, 240, 138)') ||
+            bg.includes('rgb(209, 250, 229)') || bg.includes('rgb(254, 226, 226)') || bg.includes('rgb(254, 240, 138)') || 
             bg.includes('#d1fae5') || bg.includes('#fee2e2') || bg.includes('#fef08a')
         ) {
             setTimeout(() => {
@@ -727,14 +654,14 @@ function filterCorrectionHistoryByDate(targetDate) {
 // mode: 'time'(時刻入力) / 'halfday'(前半休・後半休の選択) / 'none'(入力不要)
 // syncField: 'attendance'(出勤打刻) or 'leaving'(退勤打刻) or null（対応する打刻なし）
 const DASH_TYPE_CONFIG = {
-    '遅刻': { mode: 'time', label: '遅刻時刻', syncField: 'attendance' },
-    '有事遅刻': { mode: 'time', label: '遅刻時刻', syncField: 'attendance' },
-    '早退': { mode: 'time', label: '早退時刻', syncField: 'leaving' },
-    '有事早退': { mode: 'time', label: '早退時刻', syncField: 'leaving' },
-    '残業': { mode: 'time', label: '残業終了予定時刻', syncField: 'leaving' },
-    '半休': { mode: 'halfday' },
-    '欠勤': { mode: 'none' },
-    '有給': { mode: 'none' },
+    '遅刻':     { mode: 'time', label: '遅刻時刻',         syncField: 'attendance' },
+    '有事遅刻': { mode: 'time', label: '遅刻時刻',         syncField: 'attendance' },
+    '早退':     { mode: 'time', label: '早退時刻',         syncField: 'leaving' },
+    '有事早退': { mode: 'time', label: '早退時刻',         syncField: 'leaving' },
+    '残業':     { mode: 'time', label: '残業終了予定時刻', syncField: 'leaving' },
+    '半休':     { mode: 'halfday' },
+    '欠勤':     { mode: 'none' },
+    '有給':     { mode: 'none' },
 };
 
 // 申請種別によって「時間入力欄 / 半休区分欄 / 打刻に合わせるトグル」の表示を切り替える
@@ -898,6 +825,16 @@ document.addEventListener('DOMContentLoaded', () => {
             openAttendanceRequestModal(defaultDate);
         });
     }
+
+    // 🗓️ 勤務表画面など：行ごとに複数存在しうる「勤怠申請」ボタン
+    // （ダッシュボードの単一ボタンとは別クラスにして、互いに干渉しないようにしている）
+    document.querySelectorAll('.btn-attendance-request-row').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetDate = btn.getAttribute('data-date') || '';
+            openAttendanceRequestModal(targetDate);
+        });
+    });
 
     // 申請種別セレクトボックスの変更イベントを設定
     const typeSelect = document.getElementById('dash_request_type');

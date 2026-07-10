@@ -610,8 +610,10 @@ html[data-theme="dark"] .bulk-message-text {
 /* ==========================================================================
    📅 シフト一覧・提出画面（shift.css）
    ========================================================================== */
-/* 背景が明るいまま残っていた直接の原因 */
-html[data-theme="dark"] .main-wrapper {
+/* 背景が明るいまま残っていた直接の原因
+   ※ .main-wrapper はダッシュボードにも存在する共通要素なので、.wrapper の時と同様に
+      has-sky-bg ページ（ダッシュボード）だけは除外し、専用の空背景を覆わないようにする */
+html[data-theme="dark"] body:not(.has-sky-bg) .main-wrapper {
     background: #12151c;
 }
 html[data-theme="dark"] .view-container {
@@ -691,4 +693,275 @@ html[data-theme="dark"] .table-wrapper::-webkit-scrollbar-track {
 }
 html[data-theme="dark"] .table-wrapper::-webkit-scrollbar-thumb {
     background: #4a5568;
+}
+
+/* ==========================================================================
+   🔍 社員検索画面（employee-search.css）
+   ========================================================================== */
+html[data-theme="dark"] .employee-search-container {
+    background-color: #12151c;
+}
+html[data-theme="dark"] .employee-search-card {
+    background-color: #1c212e;
+    border-color: #2f3646;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+html[data-theme="dark"] .employee-search-title {
+    color: #f0f2f5;
+}
+html[data-theme="dark"] .employee-search-table-wrapper {
+    background-color: #1c212e;
+    border-color: #26a3a0;
+}
+html[data-theme="dark"] .table-wrapper::-webkit-scrollbar-track {
+    background: #171b25;
+}
+html[data-theme="dark"] .table-head-row {
+    background-color: #16302e;
+}
+html[data-theme="dark"] .table-body-row {
+    border-bottom-color: #2f3646;
+}
+html[data-theme="dark"] .table-body-row:hover {
+    background-color: #1b2636;
+}
+html[data-theme="dark"] .employee-search-td {
+    color: #d1d5db;
+    border-left-color: rgba(79, 216, 213, 0.15);
+    border-right-color: rgba(79, 216, 213, 0.15);
+}
+html[data-theme="dark"] .th-card-container {
+    background-color: #16302e !important;
+}
+html[data-theme="dark"] .th-card,
+html[data-theme="dark"] .th-card.fixed-col {
+    background-color: #16302e;
+    color: #d7fbf8;
+}
+html[data-theme="dark"] .th-card:hover {
+    background-color: #4fd8d5 !important;
+    color: #12151c !important;
+}
+html[data-theme="dark"] .th-card:hover .sort-arrow {
+    color: #12151c !important;
+}
+html[data-theme="dark"] .th-card.is-dragging {
+    background-color: #16302e !important;
+    border-color: #4fd8d5;
+    color: #d7fbf8;
+}
+html[data-theme="dark"] .th-card.drag-placeholder {
+    background-color: #0f2624 !important;
+    border-color: #4fd8d5;
+}
+html[data-theme="dark"] .sort-arrow {
+    color: #4fd8d5;
+}
+html[data-theme="dark"] .employee-search-filter-label {
+    color: #b8c0cc;
+}
+html[data-theme="dark"] .employee-search-filter-input,
+html[data-theme="dark"] .employee-search-filter-select {
+    background-color: #232938;
+    border-color: #3a4356;
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .employee-search-filter-input:focus,
+html[data-theme="dark"] .employee-search-filter-select:focus {
+    background-color: #1e2330;
+    border-color: #4fd8d5;
+    box-shadow: 0 0 0 3px rgba(79, 216, 213, 0.15);
+}
+html[data-theme="dark"] .employee-search-search-btn {
+    color: #7fa8ff;
+    border-color: #7fa8ff;
+}
+html[data-theme="dark"] .employee-search-search-btn:hover {
+    background: #7fa8ff;
+    color: #12151c;
+}
+html[data-theme="dark"] .employee-search-clear-btn {
+    color: #8b93a3;
+    border-color: #4a5568;
+}
+html[data-theme="dark"] .employee-search-clear-btn:hover {
+    background: #4a5568;
+    color: #ffffff;
+}
+html[data-theme="dark"] .employee-search-summary {
+    border-top-color: #2f3646;
+    color: #b8c0cc;
+}
+html[data-theme="dark"] .employee-search-summary-num {
+    color: #f0f2f5;
+}
+
+/* ==========================================================================
+   📊 出勤・打刻データ（attendance.blade.php / attendance-report.css）
+   ========================================================================== */
+html[data-theme="dark"] .report-attendance-filter-label {
+    color: #8b93a3;
+}
+html[data-theme="dark"] .report-attendance-filter-input,
+html[data-theme="dark"] .report-attendance-filter-select {
+    background-color: #232938;
+    border-color: #3a4356;
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .report-attendance-summary {
+    color: #b8c0cc;
+}
+html[data-theme="dark"] .report-attendance-summary-num {
+    color: #f0f2f5;
+}
+html[data-theme="dark"] .report-attendance-th {
+    color: #8b93a3;
+    background-color: rgba(255, 255, 255, 0.04);
+    border-bottom-color: #2a3040;
+}
+html[data-theme="dark"] .report-attendance-row {
+    border-bottom-color: #2a3040;
+}
+html[data-theme="dark"] .report-attendance-td {
+    color: #b8c0cc;
+}
+html[data-theme="dark"] .report-attendance-td-name {
+    color: #f0f2f5;
+}
+html[data-theme="dark"] .report-status-badge-出勤      { background-color: #17402b; color: #7fe0a8; }
+html[data-theme="dark"] .report-status-badge-遅刻      { background-color: #4a3510; color: #f3c477; }
+html[data-theme="dark"] .report-status-badge-欠勤      { background-color: #47232b; color: #ff9fb0; }
+html[data-theme="dark"] .report-status-badge-休み      { background-color: #262c3a; color: #9aa3af; }
+html[data-theme="dark"] .report-status-badge-default   { background-color: #262c3a; color: #6b7280; }
+html[data-theme="dark"] .report-attendance-empty {
+    color: #6b7280;
+}
+
+/* ==========================================================================
+   🗓️ 勤怠表（attendance.css）
+   ⚠️ attendance_blade.php 本体が未確認のため、共通レイアウト(layouts.app)を
+      使っているか分からない。使っている前提で、body:not(.has-sky-bg) 側の
+      ルールと競合しないよう配慮している。
+   ========================================================================== */
+/* このページ独自の青空グラデーション背景（background-imageショートハンド）は、
+   background-color の上書きだけでは消えないため、画像レイヤーごと明示的に消す。
+   :has() で「.attendance-page を含むbody」だけに絞っているので、他ページには影響しない */
+html[data-theme="dark"] body:has(.attendance-page) {
+    background-image: none;
+    background-color: #12151c;
+}
+html[data-theme="dark"] .sky-background {
+    display: none;
+}
+
+html[data-theme="dark"] .attendance-page {
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .user-dept {
+    color: #8b93a3;
+}
+html[data-theme="dark"] .month-nav-btn {
+    color: #b8c0cc;
+}
+html[data-theme="dark"] .month-nav-btn:hover {
+    color: #4fd8d5;
+}
+html[data-theme="dark"] .alert-success {
+    background: #17402b;
+    color: #7fe0a8;
+    border-color: #2f9e6f;
+}
+html[data-theme="dark"] .summary-card,
+html[data-theme="dark"] .attendance-card {
+    background: #1c212e;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+html[data-theme="dark"] .summary-item {
+    background: #171b25;
+}
+html[data-theme="dark"] .summary-label {
+    color: #8b93a3;
+}
+html[data-theme="dark"] .card-header {
+    border-bottom-color: #2a3040;
+}
+html[data-theme="dark"] .tabs {
+    border-bottom-color: #2a3040;
+}
+html[data-theme="dark"] .tab-btn {
+    color: #8b93a3;
+}
+html[data-theme="dark"] .tab-btn.active {
+    color: #4fd8d5;
+    border-bottom-color: #4fd8d5;
+}
+html[data-theme="dark"] .attendance-table th {
+    background: #171b25;
+    color: #8b93a3;
+    border-bottom-color: #2a3040;
+}
+html[data-theme="dark"] .attendance-table td {
+    border-bottom-color: #232938;
+}
+html[data-theme="dark"] .other-detail-table th {
+    background: #16302e;
+    color: #d7fbf8;
+}
+html[data-theme="dark"] .row-saturday        { background: #16262c; }
+html[data-theme="dark"] .row-saturday .col-date { color: #6fb8e8; }
+html[data-theme="dark"] .row-sunday          { background: #2c1e22; }
+html[data-theme="dark"] .row-sunday .col-date   { color: #ff9fb0; }
+html[data-theme="dark"] .status-未申請 { background: #262c3a; color: #9aa3af; }
+html[data-theme="dark"] .status-申請済み { background: #16302e; color: #4fd8d5; }
+html[data-theme="dark"] .status-承認   { background: #17402b; color: #7fe0a8; }
+html[data-theme="dark"] .status-却下   { background: #47232b; color: #ff9fb0; }
+html[data-theme="dark"] .btn-secondary {
+    background: #262c3a;
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .custom-stamp-edit-btn {
+    background-color: #16302e;
+    border-color: #26a3a0;
+    color: #4fd8d5;
+}
+html[data-theme="dark"] .custom-stamp-edit-btn:hover {
+    background-color: #4fd8d5;
+    color: #12151c;
+}
+html[data-theme="dark"] .custom-stamp-delete-btn {
+    background-color: #47232b;
+    border-color: #6b3540;
+    color: #ff9fb0;
+}
+html[data-theme="dark"] .custom-stamp-delete-btn:hover {
+    background-color: #ff6b6b;
+    color: #12151c;
+}
+html[data-theme="dark"] .btn-submit-cancel {
+    background-color: #262c3a;
+    color: #ff9fb0;
+    border-color: #47232b;
+}
+html[data-theme="dark"] .btn-submit-cancel:hover {
+    background-color: #47232b;
+}
+html[data-theme="dark"] .btn-submit-disabled {
+    background-color: #232938;
+    color: #5b6472;
+}
+/* 遅刻・早退バッジ（インラインstyleのため !important で上書き） */
+html[data-theme="dark"] .late-badge {
+    background: #47232b !important;
+    color: #ff9fb0 !important;
+}
+html[data-theme="dark"] .early-badge {
+    background: #4a3510 !important;
+    color: #f3c477 !important;
+}
+/* 既に申請済み（「申」表示）の場合の黄色枠バッジ */
+html[data-theme="dark"] .late-badge.is-requested,
+html[data-theme="dark"] .early-badge.is-requested {
+    background: #4a3f10 !important;
+    color: #f2d675 !important;
+    border-color: #8a6d00 !important;
 }
