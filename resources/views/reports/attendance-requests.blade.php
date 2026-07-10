@@ -2,79 +2,303 @@
 
 @section('title', '勤怠申請承認 | 勤怠管理システム')
 
-@push('styles')
-    <script src="https://cdn.tailwindcss.com"></script>
-@endpush
+@php
+    // 種別ごとの固定CSSクラス（インラインstyleでのBlade展開を廃止し、Linterエラーを解消するため）
+    $typeClasses = [
+        '遅刻'     => 'type-late',
+        '早退'     => 'type-early-leave',
+        '欠勤'     => 'type-absent',
+        '有給'     => 'type-paid-leave',
+        '半休'     => 'type-half-day',
+        '残業'     => 'type-overtime',
+        '有事遅刻' => 'type-emergency-late',
+        '有事早退' => 'type-emergency-early-leave',
+    ];
+@endphp
 
 @section('content')
-    <div class="w-full p-6 bg-gray-50 min-h-screen rounded-xl">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-            <div class="flex items-center justify-between mb-1">
-                <h1 class="text-lg font-bold text-gray-800">勤怠申請承認</h1>
-                <a href="{{ route('report.index') }}" class="text-sm text-blue-600 hover:underline">← 集計レポートへ戻る</a>
+    <div class="aa-app">
+        <div class="aa-header">
+            <div>
+                <p class="aa-eyebrow">承認管理</p>
+                <h1 class="aa-title">承認待ち&nbsp;<span class="aa-count" id="aaCount">{{ $requests->count() }}</span>&nbsp;件</h1>
+                <a href="{{ route('report.index') }}" class="aa-back-link">← 集計レポートへ戻る</a>
             </div>
-            <p class="text-sm text-gray-500">部下から提出された勤怠申請（遅刻・早退・欠勤・有給・半休・残業など）を確認し、承認・却下してください。</p>
-            <div class="text-sm text-gray-500 mt-2">対象件数：<span class="font-bold text-gray-800">{{ $requests->count() }}</span>件</div>
+            <div class="aa-history" id="aaHistory"></div>
         </div>
 
         @if(session('success'))
-            <div class="bg-green-50 text-green-700 border border-green-200 rounded-lg px-4 py-3 mb-6 text-sm">{{ session('success') }}</div>
+            <div class="aa-flash aa-flash-success">{{ session('success') }}</div>
         @endif
         @if(session('error'))
-            <div class="bg-red-50 text-red-700 border border-red-200 rounded-lg px-4 py-3 mb-6 text-sm">{{ session('error') }}</div>
+            <div class="aa-flash aa-flash-error">{{ session('error') }}</div>
         @endif
 
-        @forelse($requests as $req)
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
-                <div class="flex flex-wrap items-center justify-between gap-2 mb-4 pb-4 border-b border-gray-100">
-                    <div>
-                        <span class="font-bold text-gray-800">{{ $req->user->name }}</span>
-                        <span class="text-sm text-gray-500 ml-2">{{ $req->user->dept }}</span>
-                    </div>
-                    <div class="text-sm text-gray-500">
-                        対象日：<span class="font-semibold text-gray-800">{{ \Illuminate\Support\Carbon::parse($req->target_date)->format('Y年n月j日') }}</span>
-                    </div>
-                </div>
-
-                <div class="flex flex-wrap items-center gap-3 mb-4">
-                    <span class="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm font-semibold">
-                        {{ $req->request_type }}
-                    </span>
-                    @if($req->request_time)
-                        <span class="text-sm text-gray-600">
-                            時刻：<span class="font-semibold text-gray-800">{{ \Illuminate\Support\Carbon::parse($req->request_time)->format('H:i') }}</span>
-                        </span>
-                    @endif
-                </div>
-
-                @if($req->memo)
-                    <div class="bg-gray-50 rounded-lg p-3 text-sm text-gray-600 mb-4 whitespace-pre-line">
-                        <span class="font-semibold text-gray-700">申請理由：</span>{{ $req->memo }}
-                    </div>
-                @endif
-
-                @if($req->attachment)
-                    <div class="mb-4">
-                        <a href="{{ asset('storage/' . $req->attachment) }}" target="_blank" rel="noopener"
-                           class="text-sm text-blue-600 hover:underline">📎 添付ファイルを見る</a>
-                    </div>
-                @endif
-
-                <div class="flex justify-end gap-3">
-                    <form method="POST" action="{{ route('attendance.approvals.reject', $req) }}" onsubmit="return confirm('この申請を却下しますか？');">
-                        @csrf
-                        <button type="submit" class="px-5 py-2 rounded-lg border border-red-300 text-red-600 text-sm font-semibold hover:bg-red-50">却下</button>
-                    </form>
-                    <form method="POST" action="{{ route('attendance.approvals.approve', $req) }}" onsubmit="return confirm('この申請を承認しますか？');">
-                        @csrf
-                        <button type="submit" class="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700">承認</button>
-                    </form>
-                </div>
+        <div class="aa-stage" id="aaStage">
+            <div class="aa-empty {{ $requests->count() === 0 ? 'is-visible' : '' }}" id="aaEmpty">
+                <div class="aa-empty-icon">✓</div>
+                <p class="aa-empty-title">全件処理完了</p>
+                <p class="aa-empty-sub">承認待ちの勤怠申請はありません</p>
             </div>
-        @empty
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center text-gray-400">
-                現在、承認待ちの勤怠申請はありません。
+
+            @if($requests->count() > 0)
+                <div class="aa-zone aa-zone-reject" id="aaZoneReject">
+                    <div class="aa-zone-icon aa-zone-icon-reject">✕</div>
+                    <p class="aa-zone-label aa-zone-label-reject">却下</p>
+                    <kbd class="aa-kbd aa-kbd-reject">←</kbd>
+                </div>
+                <div class="aa-zone aa-zone-approve" id="aaZoneApprove">
+                    <div class="aa-zone-icon aa-zone-icon-approve">✓</div>
+                    <p class="aa-zone-label aa-zone-label-approve">承認</p>
+                    <kbd class="aa-kbd aa-kbd-approve">→</kbd>
+                </div>
+
+                <div class="aa-stack" id="aaStack">
+                    @foreach($requests as $req)
+                        @php
+                            $typeClass = $typeClasses[$req->request_type] ?? 'type-other';
+                            $initials = mb_substr($req->user->name ?? '？', 0, 1);
+                            $hasAttachment = !empty($req->attachment);
+                        @endphp
+                        <div class="aa-card {{ $typeClass }}"
+                             data-user-name="{{ $req->user->name }}"
+                             data-approve-url="{{ route('attendance.approvals.approve', $req) }}"
+                             data-reject-url="{{ route('attendance.approvals.reject', $req) }}"
+                             data-undo-url="{{ route('attendance.approvals.undo', $req) }}">
+                            <div class="aa-card-accent"></div>
+                            <div class="aa-card-body">
+                                <div class="aa-card-head">
+                                    <div class="aa-avatar">{{ $initials }}</div>
+                                    <div class="aa-card-headtext">
+                                        <h3>{{ $req->user->name }}</h3>
+                                        <p>{{ $req->user->dept }}</p>
+                                    </div>
+                                    <span class="aa-type-badge">
+                                        {{ $req->request_type }}
+                                    </span>
+                                </div>
+
+                                <div class="aa-detail-grid">
+                                    <div class="aa-detail">
+                                        <p>対象日</p>
+                                        <p>{{ \Illuminate\Support\Carbon::parse($req->target_date)->format('n月j日（' . ['日','月','火','水','木','金','土'][\Illuminate\Support\Carbon::parse($req->target_date)->dayOfWeek] . '）') }}</p>
+                                    </div>
+                                    <div class="aa-detail">
+                                        <p>時刻</p>
+                                        <p>{{ $req->request_time ? \Illuminate\Support\Carbon::parse($req->request_time)->format('H:i') : '－' }}</p>
+                                    </div>
+                                    <div class="aa-detail">
+                                        <p>申請日時</p>
+                                        <p>{{ $req->created_at?->format('n/j H:i') }}</p>
+                                    </div>
+                                    <div class="aa-detail">
+                                        <p>申請種別</p>
+                                        <p>{{ $req->request_type }}</p>
+                                    </div>
+                                </div>
+
+                                <div class="aa-reason">
+                                    <p>申請理由</p>
+                                    <p>{{ $req->memo ?: '（記載なし）' }}</p>
+                                </div>
+
+                                @if($hasAttachment)
+                                    <button type="button"
+                                            class="aa-attachment"
+                                            data-attachment-url="{{ asset('storage/' . $req->attachment) }}"
+                                            data-attachment-name="{{ basename($req->attachment) }}">
+                                        📎 添付ファイルを見る
+                                    </button>
+                                @endif
+
+                                
+                            </div>
+
+                            <div class="aa-card-overlay"></div>
+                            <div class="aa-card-stamp"></div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+
+        @if($requests->count() > 0)
+            <div class="aa-hint">
+                <span><kbd>←</kbd> 却下</span>
+                <span>カードを左右にスワイプ、またはボタンで操作できます</span>
+                <span>承認 <kbd>→</kbd></span>
             </div>
-        @endforelse
+        @endif
     </div>
+
+    <div class="aa-toast" id="aaToast" style="display:none;">
+        <span id="aaToastMsg"></span>
+        <button type="button" id="aaToastUndo" class="aa-toast-undo">元に戻す</button>
+    </div>
+
+    {{-- 添付ファイル用ポップアップ（モーダル） --}}
+    <div class="aa-modal-overlay" id="aaAttachmentModal">
+        <div class="aa-modal">
+            <button type="button" class="aa-modal-close" id="aaModalClose" aria-label="閉じる">✕</button>
+            <div class="aa-modal-body" id="aaModalBody"></div>
+        </div>
+    </div>
+
+    <span id="aa-config" data-csrf="{{ csrf_token() }}" class="hidden"></span>
+
+    @vite(['resources/css/attendance-approvals.css', 'resources/js/attendance-approvals.js'])
+@endsection@extends('layouts.app')
+
+@section('title', '勤怠申請承認 | 勤怠管理システム')
+
+@php
+    // 種別ごとの固定CSSクラス（インラインstyleでのBlade展開を廃止し、Linterエラーを解消するため）
+    $typeClasses = [
+        '遅刻'     => 'type-late',
+        '早退'     => 'type-early-leave',
+        '欠勤'     => 'type-absent',
+        '有給'     => 'type-paid-leave',
+        '半休'     => 'type-half-day',
+        '残業'     => 'type-overtime',
+        '有事遅刻' => 'type-emergency-late',
+        '有事早退' => 'type-emergency-early-leave',
+    ];
+@endphp
+
+@section('content')
+    <div class="aa-app">
+        <div class="aa-header">
+            <div>
+                <p class="aa-eyebrow">承認管理</p>
+                <h1 class="aa-title">承認待ち&nbsp;<span class="aa-count" id="aaCount">{{ $requests->count() }}</span>&nbsp;件</h1>
+                <a href="{{ route('report.index') }}" class="aa-back-link">← 集計レポートへ戻る</a>
+            </div>
+            <div class="aa-history" id="aaHistory"></div>
+        </div>
+
+        @if(session('success'))
+            <div class="aa-flash aa-flash-success">{{ session('success') }}</div>
+        @endif
+        @if(session('error'))
+            <div class="aa-flash aa-flash-error">{{ session('error') }}</div>
+        @endif
+
+        <div class="aa-stage" id="aaStage">
+            <div class="aa-empty {{ $requests->count() === 0 ? 'is-visible' : '' }}" id="aaEmpty">
+                <div class="aa-empty-icon">✓</div>
+                <p class="aa-empty-title">全件処理完了</p>
+                <p class="aa-empty-sub">承認待ちの勤怠申請はありません</p>
+            </div>
+
+            @if($requests->count() > 0)
+                <div class="aa-zone aa-zone-reject" id="aaZoneReject">
+                    <div class="aa-zone-icon aa-zone-icon-reject">✕</div>
+                    <p class="aa-zone-label aa-zone-label-reject">却下</p>
+                    <kbd class="aa-kbd aa-kbd-reject">←</kbd>
+                </div>
+                <div class="aa-zone aa-zone-approve" id="aaZoneApprove">
+                    <div class="aa-zone-icon aa-zone-icon-approve">✓</div>
+                    <p class="aa-zone-label aa-zone-label-approve">承認</p>
+                    <kbd class="aa-kbd aa-kbd-approve">→</kbd>
+                </div>
+
+                <div class="aa-stack" id="aaStack">
+                    @foreach($requests as $req)
+                        @php
+                            $typeClass = $typeClasses[$req->request_type] ?? 'type-other';
+                            $initials = mb_substr($req->user->name ?? '？', 0, 1);
+                            $hasAttachment = !empty($req->attachment);
+                        @endphp
+                        <div class="aa-card {{ $typeClass }}"
+                             data-user-name="{{ $req->user->name }}"
+                             data-approve-url="{{ route('attendance.approvals.approve', $req) }}"
+                             data-reject-url="{{ route('attendance.approvals.reject', $req) }}"
+                             data-undo-url="{{ route('attendance.approvals.undo', $req) }}">
+                            <div class="aa-card-accent"></div>
+                            <div class="aa-card-body">
+                                <div class="aa-card-scroll">
+                                    <div class="aa-card-head">
+                                        <div class="aa-avatar">{{ $initials }}</div>
+                                        <div class="aa-card-headtext">
+                                            <h3>{{ $req->user->name }}</h3>
+                                            <p>{{ $req->user->dept }}</p>
+                                        </div>
+                                        <span class="aa-type-badge">
+                                            {{ $req->request_type }}
+                                        </span>
+                                    </div>
+
+                                    <div class="aa-detail-grid">
+                                        <div class="aa-detail">
+                                            <p>対象日</p>
+                                            <p>{{ \Illuminate\Support\Carbon::parse($req->target_date)->format('n月j日（' . ['日','月','火','水','木','金','土'][\Illuminate\Support\Carbon::parse($req->target_date)->dayOfWeek] . '）') }}</p>
+                                        </div>
+                                        <div class="aa-detail">
+                                            <p>時刻</p>
+                                            <p>{{ $req->request_time ? \Illuminate\Support\Carbon::parse($req->request_time)->format('H:i') : '－' }}</p>
+                                        </div>
+                                        <div class="aa-detail">
+                                            <p>申請日時</p>
+                                            <p>{{ $req->created_at?->format('n/j H:i') }}</p>
+                                        </div>
+                                        <div class="aa-detail">
+                                            <p>申請種別</p>
+                                            <p>{{ $req->request_type }}</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="aa-reason">
+                                        <p>申請理由</p>
+                                        <p>{{ $req->memo ?: '（記載なし）' }}</p>
+                                    </div>
+
+                                    @if($hasAttachment)
+                                        <button type="button"
+                                                class="aa-attachment"
+                                                data-attachment-url="{{ asset('storage/' . $req->attachment) }}"
+                                                data-attachment-name="{{ basename($req->attachment) }}">
+                                            📎 添付ファイルを見る
+                                        </button>
+                                    @endif
+                                </div>
+
+                                <div class="aa-actions">
+                                    <button type="button" class="aa-btn aa-btn-reject" data-action="reject">✕ 却下</button>
+                                    <button type="button" class="aa-btn aa-btn-approve" data-action="approve">✓ 承認</button>
+                                </div>
+                            </div>
+
+                            <div class="aa-card-overlay"></div>
+                            <div class="aa-card-stamp"></div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+
+        @if($requests->count() > 0)
+            <div class="aa-hint">
+                <span><kbd>←</kbd> 却下</span>
+                <span>カードを左右にスワイプ、またはボタンで操作できます</span>
+                <span>承認 <kbd>→</kbd></span>
+            </div>
+        @endif
+    </div>
+
+    <div class="aa-toast" id="aaToast" style="display:none;">
+        <span id="aaToastMsg"></span>
+        <button type="button" id="aaToastUndo" class="aa-toast-undo">元に戻す</button>
+    </div>
+
+    {{-- 添付ファイル用ポップアップ（モーダル） --}}
+    <div class="aa-modal-overlay" id="aaAttachmentModal">
+        <div class="aa-modal">
+            <button type="button" class="aa-modal-close" id="aaModalClose" aria-label="閉じる">✕</button>
+            <div class="aa-modal-body" id="aaModalBody"></div>
+        </div>
+    </div>
+
+    <span id="aa-config" data-csrf="{{ csrf_token() }}" class="hidden"></span>
+
+    @vite(['resources/css/attendance-approvals.css', 'resources/js/attendance-approvals.js'])
 @endsection
