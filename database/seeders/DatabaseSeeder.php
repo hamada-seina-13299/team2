@@ -16,7 +16,6 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             ShiftMasterSeeder::class,
             ShiftSeeder::class,
-            WorkingSeeder::class,
             ShiftSubmissionSeeder::class,
             WorkingCorrectionSeeder::class,
             AttendanceRequestSeeder::class,

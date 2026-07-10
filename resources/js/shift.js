@@ -178,6 +178,20 @@ document.addEventListener('DOMContentLoaded', function () {
         const el = document.getElementById('error-data');
         return el ? el.getAttribute('data-shift-update-time-url') : '';
     })();
+    // 💡 ③②のロック理由（提出済み/承認済み or 先月以前）。空文字ならロックなし。
+    const editLockReason = (function () {
+        const el = document.getElementById('error-data');
+        return el ? (el.getAttribute('data-edit-lock-reason') || '') : '';
+    })();
+
+    // 💡 「修正不可」ボタンがクリックされた際に、ロック理由を軽くアラート表示する
+    function bindDisabledEditButton(btn) {
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+            alert(this.getAttribute('data-lock-reason') || 'このシフトは修正できません');
+        });
+    }
+    document.querySelectorAll('.btn-edit-disabled').forEach(bindDisabledEditButton);
 
     function escapeHtml(str) {
         const div = document.createElement('div');
@@ -215,9 +229,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const editCell = row.querySelector('.cell-edit');
         if (editCell) {
-            editCell.innerHTML =
-                '<button type="button" class="btn-edit edit-shift-btn inline-block text-center" data-shift-id="' + shift.shift_id + '" data-editing="0">修正</button>';
-            bindEditButton(editCell.querySelector('.edit-shift-btn'));
+            if (editLockReason) {
+                editCell.innerHTML =
+                    '<button type="button" class="btn-edit-disabled" data-lock-reason="' + escapeHtml(editLockReason) + '">修正不可</button>';
+                bindDisabledEditButton(editCell.querySelector('.btn-edit-disabled'));
+            } else {
+                editCell.innerHTML =
+                    '<button type="button" class="btn-edit edit-shift-btn inline-block text-center" data-shift-id="' + shift.shift_id + '" data-editing="0">修正</button>';
+                bindEditButton(editCell.querySelector('.edit-shift-btn'));
+            }
         }
 
         const deleteCell = row.querySelector('.cell-delete');

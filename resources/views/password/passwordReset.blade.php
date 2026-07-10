@@ -6,7 +6,23 @@
     <title>新しいパスワードの登録</title>
     @vite(['resources/css/background.css', 'resources/css/passwordReset.css'])
 </head>
-<body class="weather-sunny">
+<body class="weather-rainy">
+
+    <!-- 星空 -->
+    <div class="starry_sky universe"></div>
+
+    <div class="stage-objects">
+        <div class="cloud cloud-back"></div>
+    </div>
+
+    <!-- 雨 -->
+    <div class="rain">
+        <div></div><div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div><div></div>
+    </div>
 
     <div class="stage-objects" id="airplane-stage">
         <div class="cloud cloud-back"></div>

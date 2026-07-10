@@ -1,5 +1,5 @@
 <header class="top-header">
-    <a href="#" class="notice-link">ⓘ お知らせ</a>
+    <a href="#" class="notice-link modal-trigger" data-target="notice-modal" data-notice-url="{{ route('notices.index') }}">ⓘ お知らせ</a>
 
     <div class="user-info">
         {{-- ❓ヘルプメニュー --}}
@@ -25,7 +25,7 @@
             <div class="header-dropdown-menu">
                 <a href="#" class="header-dropdown-menu-item modal-trigger" data-target="sky-option-modal" id="sky-option-open-btn">オプション</a>
                 <a href="#" class="header-dropdown-menu-item">メール通知設定</a>
-                <a href="#" class="header-dropdown-menu-item">パスワード変更</a>
+                <a href="#" class="header-dropdown-menu-item modal-trigger" data-target="change-password-modal">パスワード変更</a>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <button type="submit" class="header-dropdown-menu-item header-dropdown-menu-item--button">ログアウト</button>
@@ -107,11 +107,30 @@
 <div id="sky-option-modal" class="modal-overlay">
     <div class="modal-window modal-window--auto">
         <div class="modal-header">
-            <h3>🌤️ 背景の時間帯設定</h3>
+            <h3>🎨 表示設定</h3>
             <button class="modal-close-btn">&times;</button>
         </div>
         <div class="modal-body">
-            <p>ダッシュボードの背景の空を、好きな時間帯に固定できます。「自動」を選ぶと、実際の現在時刻に合わせて自動で切り替わります。</p>
+            <div class="option-section-title">🌓 表示モード</div>
+            <p class="option-section-desc">画面全体の配色を切り替えます。「自動」は19時〜翌6時をダークモードとして扱います。</p>
+
+            <div class="sky-option-list" style="margin-bottom: 26px;">
+                <label class="sky-option-item">
+                    <input type="radio" name="theme_option" value="light">
+                    <span class="sky-option-label">☀️ ライトモード（デフォルト）</span>
+                </label>
+                <label class="sky-option-item">
+                    <input type="radio" name="theme_option" value="dark">
+                    <span class="sky-option-label">🌙 ダークモード</span>
+                </label>
+                <label class="sky-option-item">
+                    <input type="radio" name="theme_option" value="auto">
+                    <span class="sky-option-label">🕐 自動（時刻に合わせる）</span>
+                </label>
+            </div>
+
+            <div class="option-section-title">🌤️ 背景の時間帯・天候</div>
+            <p class="option-section-desc">ダッシュボードの背景の空を、好きな時間帯・天候に固定できます。「自動」を選ぶと、実際の現在時刻に合わせて自動で切り替わり、天候が雨や雷雨の場合は空にも反映されます。</p>
 
             <div class="sky-option-list">
                 <label class="sky-option-item">
@@ -134,10 +153,96 @@
                     <input type="radio" name="sky_option" value="sky-night">
                     <span class="sky-option-label">🌌 ナイトフライト</span>
                 </label>
+                <label class="sky-option-item">
+                    <input type="radio" name="sky_option" value="sky-rainy">
+                    <span class="sky-option-label">🌧️ レインフライト</span>
+                </label>
+                <label class="sky-option-item">
+                    <input type="radio" name="sky_option" value="sky-storm">
+                    <span class="sky-option-label">⛈️ ストームフライト</span>
+                </label>
             </div>
         </div>
         <div class="modal-footer">
             <button class="modal-action-btn" id="sky-option-save-btn">保存して閉じる</button>
+        </div>
+    </div>
+</div>
+
+<div id="change-password-modal" class="modal-overlay">
+    <div class="modal-window modal-window--auto">
+        <div class="modal-header">
+            <h3>🔒 パスワード変更</h3>
+            <button class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="change-password-error" style="display:none; background-color:#fef2f2; border:1px solid #fecaca; color:#dc2626; font-size:13px; padding:10px 12px; border-radius:6px; margin-bottom:15px;"></div>
+            <div id="change-password-success" style="display:none; background-color:#e6f7f7; border:1px solid #99e6e3; color:#1aaba8; font-size:13px; font-weight:bold; padding:10px 12px; border-radius:6px; margin-bottom:15px;"></div>
+
+            <form id="change-password-form" action="{{ route('account.changePassword') }}" method="POST">
+                @csrf
+                <div style="margin-bottom: 15px; text-align: left;">
+                    <label style="display:block; font-weight:bold; margin-bottom: 5px; font-size:14px;">現在のパスワード <span style="color:red;">*</span></label>
+                    <input type="password" name="current_password" required autocomplete="current-password" class="dashboard-input-text" style="width:100%; height:38px;">
+                </div>
+                <div style="margin-bottom: 15px; text-align: left;">
+                    <label style="display:block; font-weight:bold; margin-bottom: 5px; font-size:14px;">新しいパスワード <span style="color:red;">*</span></label>
+                    <input type="password" name="new_password" required minlength="8" autocomplete="new-password" class="dashboard-input-text" style="width:100%; height:38px;">
+                </div>
+                <div style="margin-bottom: 15px; text-align: left;">
+                    <label style="display:block; font-weight:bold; margin-bottom: 5px; font-size:14px;">新しいパスワード（確認） <span style="color:red;">*</span></label>
+                    <input type="password" name="new_password_confirmation" required minlength="8" autocomplete="new-password" class="dashboard-input-text" style="width:100%; height:38px;">
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            {{-- ⚠️ 意図的に .modal-action-btn クラスを付けていません。
+                 付けるとクリック時に既存の汎用モーダルシステムが即座にモーダルを閉じてしまい、
+                 バリデーションエラーを表示する前に閉じてしまうため、開閉は自前のJSで制御します。 --}}
+            <button type="button" id="change-password-submit-btn" class="modal-action-btn-style">変更する</button>
+        </div>
+    </div>
+</div>
+
+<div id="notice-modal" class="modal-overlay">
+    <div class="modal-window">
+        <div class="modal-header">
+            <h3>🔔 お知らせ</h3>
+            <button class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="notice-loading" class="notice-placeholder">読み込み中...</div>
+            <div id="notice-empty" class="notice-placeholder" style="display:none;">お知らせはありません。</div>
+            <table id="notice-table" class="notice-table" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>カテゴリ</th>
+                        <th>タイトル</th>
+                        <th>日時</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="notice-table-body"></tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-action-btn">閉じる</button>
+        </div>
+    </div>
+</div>
+
+<div id="notice-preview-modal" class="modal-overlay">
+    <div class="modal-window modal-window--auto">
+        <div class="modal-header">
+            <h3>📄 給与明細プレビュー</h3>
+            <button class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body" style="text-align:center;">
+            <img id="notice-preview-img" src="" alt="給与明細プレビュー" style="width:200px; height:200px; image-rendering: pixelated;">
+            <p style="margin-top:14px; color:#9ca3af; font-size:12px;">※開発演習用のダミー画像です（実際の明細データではありません）</p>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-action-btn">閉じる</button>
         </div>
     </div>
 </div>

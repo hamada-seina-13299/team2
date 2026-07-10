@@ -18,3 +18,6 @@ Route::post('/password/passwordRequest', [LoginController::class, 'sendResetLink
 // 2. メールのURLをクリックした先（画面表示と確定処理）
 Route::get('/password/passwordReset/{token}', [LoginController::class, 'showResetForm'])->name('password.passwordReset');
 Route::post('/password/passwordReset', [LoginController::class, 'resetPassword'])->name('password.update');
+
+Route::post('/account/change-password', [LoginController::class, 'changePassword'])
+    ->name('account.changePassword');
