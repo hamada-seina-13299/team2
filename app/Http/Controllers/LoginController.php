@@ -83,6 +83,39 @@ class LoginController extends Controller
 
 
     // ================================================
+    // パスワード変更（ログイン中の本人による変更）
+    // ================================================
+    // メールでの本人確認は不要（既にセッションで認証済みのため）。
+    // 「現在のパスワード」を入力させることで本人確認とする。
+    public function changePassword(Request $request)
+    {
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'new_password' => ['required', 'string', 'min:8', 'confirmed'],
+        ], [
+            'current_password.required' => '現在のパスワードを入力してください。',
+            'current_password.current_password' => '現在のパスワードが正しくありません。',
+            'new_password.required' => '新しいパスワードを入力してください。',
+            'new_password.min' => '新しいパスワードは8文字以上で入力してください。',
+            'new_password.confirmed' => '確認用パスワードが一致しません。',
+        ]);
+
+        $user = Auth::user();
+        if (! $user instanceof User) {
+            abort(403);
+        }
+
+        $user->password = Hash::make($validated['new_password']);
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'パスワードを変更しました。',
+        ]);
+    }
+
+
+    // ================================================
     // ログアウト処理
     // ================================================
     public function logout(Request $request)

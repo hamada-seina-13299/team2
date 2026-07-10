@@ -1,0 +1,694 @@
+@charset "UTF-8";
+
+/* ==========================================================================
+   🌙 ダークモード（既知の画面のみ対応）
+   ========================================================================== */
+/*
+   方針:
+   ・すべて `html[data-theme="dark"] セレクタ` の形にして、通常のクラス単体より
+     詳細度を高くしている。これにより、読み込み順に関係なく確実に上書きできる
+     （マイデータ画面のようにBlade内に直接 <style> を書いているページも含む）。
+   ・対応済み: 全体レイアウト（body/サイドバー呼び出し元）、ダッシュボード、
+     ヘッダーとその各種モーダル（❓/ユーザー名/オプション/パスワード変更/お知らせ）、マイデータ、
+     機内窓背景の窓枠。
+   ・未対応: サイドバー本体（sidebar.css未共有のため）、勤務表・シフト提出・
+     打刻修正の詳細画面など、こちらで内容を把握していない画面。
+*/
+
+/* ------------------------------------------------------------------------
+   全体レイアウト
+   ------------------------------------------------------------------------ */
+/* has-sky-bg（ダッシュボード画面）は、機内窓の専用背景を活かすため
+   body自体は透明のまま保つ。それ以外のページだけ暗いbody背景色にする */
+html[data-theme="dark"] body:not(.has-sky-bg) {
+    background-color: #12151c;
+    color: #e5e7eb;
+}
+html[data-theme="dark"] body.has-sky-bg {
+    color: #e5e7eb;
+}
+
+/* サイドバー・ヘッダーの背後に敷かれる薄い背景色調整のみ。
+   ダッシュボード(has-sky-bg)では、これが不透明だと専用の空背景(z-index:-1)を
+   完全に覆い隠してしまうため、そのページだけは対象から除外する */
+html[data-theme="dark"] body:not(.has-sky-bg) .wrapper {
+    background-color: #12151c;
+}
+
+/* ------------------------------------------------------------------------
+   サイドバー
+   ------------------------------------------------------------------------ */
+html[data-theme="dark"] .sidebar {
+    background-color: #1a1f29;
+    border-right-color: #2a3040;
+}
+html[data-theme="dark"] .sidebar-icon {
+    color: #8b93a3;
+}
+html[data-theme="dark"] .sidebar-icon.active {
+    background-color: #1b3634;
+    color: #4fd8d5;
+    border-left-color: #26d0ce;
+}
+html[data-theme="dark"] .sidebar-logo {
+    border-bottom-color: #2a3040;
+}
+html[data-theme="dark"] .brand-name {
+    color: #7fa8ff;
+}
+html[data-theme="dark"] .sidebar-text {
+    color: #d1d5db;
+}
+
+/* ------------------------------------------------------------------------
+   ヘッダー
+   ------------------------------------------------------------------------ */
+html[data-theme="dark"] .top-header {
+    background-color: #1a1f29;
+    border-bottom-color: #2a3040;
+    color: #d1d5db;
+}
+html[data-theme="dark"] .user-info {
+    color: #b8c0cc;
+}
+html[data-theme="dark"] .header-icon-link:hover,
+html[data-theme="dark"] .header-user-link:hover {
+    color: #4fd8d5;
+}
+html[data-theme="dark"] .header-dropdown-menu {
+    background-color: #232938;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+html[data-theme="dark"] .header-dropdown-menu-item {
+    color: #d1d5db;
+}
+html[data-theme="dark"] .header-dropdown-menu-item:hover {
+    background-color: #2c3444;
+    color: #4fd8d5;
+}
+
+/* ヘッダーの汎用モーダルシステム（❓/ユーザー名から開く各種モーダル・オプション・パスワード変更・お知らせ） */
+html[data-theme="dark"] .modal-window {
+    background-color: #1e2330;
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .modal-header {
+    border-bottom-color: #2f3646;
+}
+html[data-theme="dark"] .modal-header h3 {
+    color: #f0f2f5;
+}
+html[data-theme="dark"] .modal-close-btn {
+    color: #8b93a3;
+}
+html[data-theme="dark"] .modal-close-btn:hover {
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .modal-body {
+    color: #c7cdd6;
+}
+html[data-theme="dark"] .modal-footer {
+    border-top-color: #2f3646;
+}
+
+/* オプションモーダル：時間帯/表示モードの選択リスト */
+html[data-theme="dark"] .option-section-title {
+    color: #d1d5db;
+}
+html[data-theme="dark"] .sky-option-item {
+    border-color: #333c4d;
+}
+html[data-theme="dark"] .sky-option-item:hover {
+    border-color: #26d0ce;
+    background-color: #202838;
+}
+html[data-theme="dark"] .sky-option-item:has(input:checked) {
+    border-color: #26d0ce;
+    background-color: #1b3634;
+}
+html[data-theme="dark"] .sky-option-label {
+    color: #e5e7eb;
+}
+
+/* パスワード変更モーダルの入力欄 */
+html[data-theme="dark"] .dashboard-input-text,
+html[data-theme="dark"] .dashboard-input-time {
+    background-color: #232938;
+    border-color: #3a4356;
+    color: #e5e7eb;
+}
+
+/* お知らせ一覧 */
+html[data-theme="dark"] .notice-placeholder {
+    color: #7d8598;
+}
+html[data-theme="dark"] .notice-table th {
+    background-color: #1b3634;
+    color: #d7fbf8;
+}
+html[data-theme="dark"] .notice-table td {
+    border-bottom-color: #2a3040;
+    color: #d1d5db;
+}
+html[data-theme="dark"] .notice-table tbody tr:nth-child(even) {
+    background-color: #1b202c;
+}
+html[data-theme="dark"] .notice-badge-alert   { background-color: #7a6a17; color: #ffe9a3; }
+html[data-theme="dark"] .notice-badge-system  { background-color: #4b4620; color: #f3ecc3; }
+html[data-theme="dark"] .notice-badge-payslip { background-color: #163a5c; color: #bfe0ff; }
+html[data-theme="dark"] .notice-action-btn {
+    background-color: #1c212e;
+    color: #4fd8d5;
+}
+html[data-theme="dark"] .notice-action-btn:hover {
+    background-color: #26d0ce;
+    color: #12151c;
+}
+
+/* ------------------------------------------------------------------------
+   ダッシュボード本体
+   ------------------------------------------------------------------------ */
+html[data-theme="dark"] .main-card {
+    background-color: #1c212e;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+html[data-theme="dark"] .current-date {
+    color: #b8c0cc;
+}
+html[data-theme="dark"] .clock-display {
+    color: #f0f2f5;
+}
+html[data-theme="dark"] .clock-seconds {
+    color: #8b93a3;
+}
+html[data-theme="dark"] .shift-info-box {
+    background-color: #232938;
+    border-color: #3a4356;
+    color: #c7cdd6;
+}
+html[data-theme="dark"] .info-label {
+    color: #8b93a3;
+}
+html[data-theme="dark"] .info-value {
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .btn-outline {
+    background-color: #1c212e;
+    color: #4fd8d5;
+}
+html[data-theme="dark"] .btn-break {
+    background-color: #1c212e;
+    color: #4fd8d5;
+}
+html[data-theme="dark"] .btn-break:disabled {
+    background-color: #262c3a !important;
+    color: #5b6472 !important;
+    border-color: #333c4d !important;
+}
+html[data-theme="dark"] .btn-punch:disabled {
+    background-color: #262c3a;
+    color: #5b6472;
+}
+html[data-theme="dark"] .history-section-title {
+    color: #4fd8d5;
+}
+html[data-theme="dark"] .date-line {
+    color: #7d8598;
+}
+html[data-theme="dark"] .date-line::before,
+html[data-theme="dark"] .date-line::after {
+    border-bottom-color: #2a3040;
+}
+
+/* 打刻履歴カード（Blade側でインラインstyleに .history-card クラスを追加済み） */
+html[data-theme="dark"] .history-card {
+    background-color: #1c212e !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2) !important;
+    color: #d1d5db;
+}
+
+/* 打刻修正モーダル */
+html[data-theme="dark"] .modal-container {
+    background-color: #1e2330;
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .modal-title {
+    color: #f0f2f5;
+}
+html[data-theme="dark"] .modal-table th {
+    background-color: #1b3634;
+    color: #d7fbf8;
+}
+html[data-theme="dark"] .modal-table td {
+    background-color: #1e2330;
+    border-color: #2f3646;
+    color: #d1d5db;
+}
+html[data-theme="dark"] .modal-input,
+html[data-theme="dark"] .modal-select {
+    background-color: #232938;
+    border-color: #3a4356;
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .btn-close-modal {
+    background-color: #1e2330;
+    color: #4fd8d5;
+}
+html[data-theme="dark"] .btn-history-edit {
+    background-color: #1e2330;
+    color: #4fd8d5;
+}
+
+/* 勤怠申請モーダル */
+html[data-theme="dark"] .dashboard-modal-box {
+    background-color: #1e2330;
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .dashboard-date-title {
+    color: #f0f2f5;
+}
+html[data-theme="dark"] .dashboard-date-nav {
+    border-bottom-color: #2f3646;
+}
+html[data-theme="dark"] .dashboard-footer-actions {
+    border-top-color: #2f3646;
+}
+html[data-theme="dark"] .dashboard-btn-close {
+    background-color: #1e2330;
+    color: #4fd8d5;
+}
+/* 申請種別/半休区分のセレクトは背景色がインラインstyleで直書きされているため !important で上書き */
+html[data-theme="dark"] .dashboard-input-text,
+html[data-theme="dark"] .dashboard-input-time {
+    background-color: #232938 !important;
+}
+html[data-theme="dark"] .dashboard-input-time[readonly] {
+    background-color: #2a3040 !important;
+    color: #6b7280 !important;
+}
+html[data-theme="dark"] .dashboard-dropzone {
+    background-color: #202634;
+    border-color: #3a4356;
+    color: #8b93a3;
+}
+html[data-theme="dark"] .dashboard-dropzone.is-dragover {
+    background-color: #1b3634;
+    border-color: #26d0ce;
+    color: #4fd8d5;
+}
+
+/* ------------------------------------------------------------------------
+   マイデータ
+   ------------------------------------------------------------------------ */
+html[data-theme="dark"] .mydata-card {
+    background-color: #1c212e;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+html[data-theme="dark"] .mydata-card-header {
+    border-bottom-color: #2a3040;
+}
+html[data-theme="dark"] .mydata-title {
+    color: #f0f2f5;
+}
+html[data-theme="dark"] .mydata-subtitle {
+    color: #8b93a3;
+}
+html[data-theme="dark"] .mydata-tabs {
+    border-bottom-color: #2a3040;
+}
+html[data-theme="dark"] .mydata-tab-btn {
+    color: #8b93a3;
+}
+html[data-theme="dark"] .mydata-tab-btn:hover {
+    color: #4fd8d5;
+}
+html[data-theme="dark"] .mydata-tab-btn.active {
+    color: #4fd8d5;
+}
+html[data-theme="dark"] .mydata-type-attendance_request { background-color: #23285a; color: #a9b6ff; }
+html[data-theme="dark"] .mydata-type-shift_submission   { background-color: #4a3510; color: #f3c477; }
+html[data-theme="dark"] .mydata-type-working_correction { background-color: #1b3634; color: #6be0dc; }
+html[data-theme="dark"] .mydata-table th {
+    background-color: #1b3634;
+    color: #d7fbf8;
+    border-bottom-color: #234846;
+}
+html[data-theme="dark"] .mydata-table td {
+    border-bottom-color: #2a3040;
+    color: #d1d5db;
+}
+html[data-theme="dark"] .mydata-table tbody tr:hover {
+    background-color: #202634;
+}
+html[data-theme="dark"] .mydata-memo {
+    color: #7d8598;
+}
+html[data-theme="dark"] .mydata-empty {
+    color: #6b7280;
+}
+html[data-theme="dark"] .mydata-status-未申請 { background-color: #2c313b; color: #9aa3af; }
+html[data-theme="dark"] .mydata-status-申請中 { background-color: #1b3634; color: #4fd8d5; }
+html[data-theme="dark"] .mydata-status-承認   { background-color: #17402b; color: #7fe0a8; }
+html[data-theme="dark"] .mydata-status-却下   { background-color: #47232b; color: #ff9fb0; }
+html[data-theme="dark"] .mydata-updater {
+    color: #7d8598;
+}
+html[data-theme="dark"] .mydata-dash {
+    color: #4b5563;
+}
+html[data-theme="dark"] .mydata-attachment-btn {
+    background-color: #1c212e;
+    color: #4fd8d5;
+}
+html[data-theme="dark"] .mydata-modal-box {
+    background-color: #1e2330;
+}
+html[data-theme="dark"] .mydata-modal-header {
+    border-bottom-color: #2f3646;
+    color: #f0f2f5;
+}
+
+/* ------------------------------------------------------------------------
+   機内窓背景（窓枠の機内壁部分だけ、暗めのプラスチック色に）
+   ------------------------------------------------------------------------ */
+html[data-theme="dark"] .dash-window-glass {
+    box-shadow: 0 0 0 9999px #262b36;
+}
+
+/* ==========================================================================
+   🗓️ シフト追加モーダル（shiftAdd.css）
+   ========================================================================== */
+html[data-theme="dark"] .modal-title-bar {
+    border-bottom-color: #2f3646;
+}
+html[data-theme="dark"] .modal-title-bar h2 {
+    color: #f0f2f5;
+}
+html[data-theme="dark"] .modal-footer-bar {
+    background-color: #171b25;
+    border-top-color: #2f3646;
+}
+html[data-theme="dark"] .form-field-label,
+html[data-theme="dark"] .form-field-label-sub {
+    color: #d1d5db;
+}
+html[data-theme="dark"] .form-field-label-disabled {
+    color: #8b93a3;
+}
+html[data-theme="dark"] .form-field-help {
+    color: #8b93a3;
+}
+html[data-theme="dark"] .form-input-date {
+    border-color: #3a4356;
+    background: linear-gradient(180deg, #232938 0%, #1e2330 100%);
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .form-input-date:hover {
+    border-color: #4a5568;
+}
+html[data-theme="dark"] .form-input-date[readonly] {
+    background: #171b25;
+    color: #6b7280;
+}
+html[data-theme="dark"] .form-input-date:focus {
+    background: #232938;
+    border-color: #4fd8d5;
+    box-shadow: 0 0 0 4px rgba(79, 216, 213, 0.15);
+}
+html[data-theme="dark"] .form-input-text,
+html[data-theme="dark"] .form-input-time,
+html[data-theme="dark"] .form-select-custom {
+    border-color: #3a4356 !important;
+    background-color: #232938 !important;
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .form-input-text:focus,
+html[data-theme="dark"] .form-input-time:focus,
+html[data-theme="dark"] .form-select-custom:focus {
+    border-color: #4fd8d5;
+    background-color: #1e2330;
+    box-shadow: 0 0 0 3px rgba(79, 216, 213, 0.15);
+}
+html[data-theme="dark"] .form-input-disabled {
+    border-color: #2f3646;
+    background-color: #171b25;
+    color: #5b6472;
+}
+html[data-theme="dark"] .btn-submit-primary {
+    color: #7fa8ff;
+    border-color: #7fa8ff;
+}
+html[data-theme="dark"] .btn-submit-primary:hover {
+    background: #7fa8ff;
+    color: #12151c;
+}
+html[data-theme="dark"] .btn-submit-secondary {
+    color: #b8c0cc;
+    border-color: #4a5568;
+}
+html[data-theme="dark"] .btn-submit-secondary:hover {
+    background: #4a5568;
+    color: #ffffff;
+}
+html[data-theme="dark"] .btn-modal-close-icon {
+    color: #8b93a3;
+}
+html[data-theme="dark"] .btn-modal-close-icon:hover {
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .btn-add-new-master {
+    color: #4fd8d5;
+}
+html[data-theme="dark"] .master-scroll-area-box {
+    border-color: #3a4356;
+    background-color: #171b25;
+}
+html[data-theme="dark"] .master-option-card {
+    background-color: #232938;
+    border-color: #2f3646;
+}
+html[data-theme="dark"] .master-option-card:hover {
+    border-color: #4fd8d5;
+    background-color: #1b3634;
+}
+html[data-theme="dark"] .master-option-card.selected {
+    border-color: #4fd8d5;
+    background-color: #1b3634;
+    box-shadow: 0 0 0 1px #4fd8d5;
+}
+html[data-theme="dark"] .master-option-name {
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .master-option-time {
+    color: #8b93a3;
+}
+html[data-theme="dark"] .delete-master-btn {
+    color: #6b7280;
+}
+html[data-theme="dark"] .delete-master-btn:hover {
+    color: #ff6b6b;
+}
+html[data-theme="dark"] .master-empty-text {
+    color: #6b7280;
+}
+html[data-theme="dark"] .new-master-form-block {
+    background-color: #171b25;
+    border-color: #4fd8d5;
+}
+html[data-theme="dark"] .new-master-form-title {
+    color: #4fd8d5;
+}
+html[data-theme="dark"] .bulk-msg-banner {
+    background-color: #16302e;
+    border-color: #234846;
+}
+html[data-theme="dark"] .bulk-msg-text {
+    color: #d1d5db;
+}
+html[data-theme="dark"] .bulk-msg-count-num {
+    color: #4fd8d5;
+}
+html[data-theme="dark"] .alert-danger-box {
+    background-color: #3a1f24;
+    border-color: #6b3540;
+}
+html[data-theme="dark"] .error-list-disc {
+    color: #ff9fb0;
+}
+
+/* ==========================================================================
+   📋 勤務表（shiftcorrection.css）
+   ========================================================================== */
+/* 元のCSSがほぼ全て --sc-* というCSS変数で配色されているため、
+   変数そのものを上書きするだけで大部分が自動的にダーク対応する */
+html[data-theme="dark"] {
+    --sc-bg:           #12151c;
+    --sc-surface:      #1c212e;
+    --sc-border:       #2f3646;
+    --sc-primary:      #4fd8d5;
+    --sc-primary-dark: #26a3a0;
+    --sc-primary-soft: #16302e;
+    --sc-text:         #e5e7eb;
+    --sc-muted:        #8b93a3;
+    --sc-pending-bg:   #4a3510;
+    --sc-pending-tx:   #f3c477;
+    --sc-approved-bg:  #17402b;
+    --sc-approved-tx:  #7fe0a8;
+    --sc-rejected:     #ff6b6b;
+    --sc-rejected-bg:  #47232b;
+    --sc-rejected-tx:  #ff9fb0;
+}
+
+/* card-headerの文字色(#fff)は変数化されていないが、暗い --sc-primary の上でも
+   そのまま白文字で問題なく読めるため変更不要 */
+
+/* 変数を使わずハードコードされている箇所だけ個別に上書き（元のルールが !important のため、
+   こちらも !important を付けて読み込み順に依存せず確実に勝つようにしている） */
+html[data-theme="dark"] .table thead th {
+    background: #171b25 !important;
+}
+html[data-theme="dark"] .form-control,
+html[data-theme="dark"] .form-select {
+    background-color: #232938 !important;
+}
+html[data-theme="dark"] .form-control:focus,
+html[data-theme="dark"] .form-select:focus {
+    background-color: #1e2330 !important;
+}
+html[data-theme="dark"] .btn-outline-secondary {
+    background: #1c212e !important;
+}
+html[data-theme="dark"] .btn-outline-danger {
+    background: #1c212e !important;
+}
+html[data-theme="dark"] .badge.bg-secondary {
+    background: #262c3a !important;
+}
+
+/* ==========================================================================
+   ✅ シフト提出承認（approvals.blade.php）
+   ⚠️ shift.css の中身が届いていないため、Tailwind標準クラスは正確に対応できるが、
+      .btn-edit / .btn-approve / .btn-delete / .bulk-message-box などの独自クラスは
+      推測での対応。shift.css を共有いただき次第、正確な配色に調整する。
+   ========================================================================== */
+html[data-theme="dark"] .bg-gray-50 { background-color: #12151c !important; }
+html[data-theme="dark"] .bg-white   { background-color: #1c212e !important; }
+html[data-theme="dark"] .text-gray-800 { color: #e5e7eb !important; }
+html[data-theme="dark"] .text-gray-700 { color: #d1d5db !important; }
+html[data-theme="dark"] .text-gray-500 { color: #9aa3af !important; }
+html[data-theme="dark"] .text-gray-400 { color: #7d8598 !important; }
+html[data-theme="dark"] .border-gray-100 { border-color: #2a3040 !important; }
+
+/* .btn-edit / .btn-delete は shift.css で定義されている実クラス（青/赤の枠線ボタン）だと判明したため、
+   推測のfilterではなく正確な配色に変更 */
+html[data-theme="dark"] .btn-edit {
+    color: #7fa8ff;
+    border-color: #7fa8ff;
+}
+html[data-theme="dark"] .btn-edit:hover {
+    background: #7fa8ff;
+    color: #12151c;
+}
+html[data-theme="dark"] .btn-delete {
+    color: #ff6b6b;
+    border-color: #ff6b6b;
+}
+html[data-theme="dark"] .btn-delete:hover {
+    background: #ff6b6b;
+    color: #12151c;
+}
+/* .btn-approve は shift.css にも定義が無く、承認画面側でも未スタイルのボタンでした
+   （ダークモードとは無関係の既存の抜け漏れです。参考までにお伝えします） */
+html[data-theme="dark"] .bulk-message-box {
+    background-color: #16302e;
+    border-color: #234846;
+}
+html[data-theme="dark"] .bulk-message-text {
+    color: #d7fbf8;
+}
+
+/* ==========================================================================
+   📅 シフト一覧・提出画面（shift.css）
+   ========================================================================== */
+/* 背景が明るいまま残っていた直接の原因 */
+html[data-theme="dark"] .main-wrapper {
+    background: #12151c;
+}
+html[data-theme="dark"] .view-container {
+    background: #12151c;
+}
+
+html[data-theme="dark"] .header-card {
+    background-color: #1c212e;
+    border-color: #2f3646;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+html[data-theme="dark"] .header-title-flex h1 {
+    color: #f0f2f5;
+}
+html[data-theme="dark"] .pager-btn {
+    background-color: #232938;
+    border-color: #3a4356;
+    color: #6fb8e8;
+}
+html[data-theme="dark"] .pager-btn:hover {
+    background-color: #4fd8d5;
+    color: #12151c;
+    border-color: #4fd8d5;
+}
+html[data-theme="dark"] .pager-current {
+    color: #f0f2f5;
+}
+html[data-theme="dark"] .selected-master-badge {
+    background-color: #17402b;
+    border-color: #2f9e6f;
+}
+html[data-theme="dark"] .selected-master-label {
+    color: #7fe0a8;
+}
+html[data-theme="dark"] .alert-success {
+    background-color: #17402b;
+    color: #7fe0a8;
+    border-color: #2f9e6f;
+}
+html[data-theme="dark"] .table-wrapper {
+    background-color: #1c212e;
+    border-color: #26a3a0;
+}
+html[data-theme="dark"] .table-head-row {
+    background-color: #16302e;
+}
+html[data-theme="dark"] .table-body-row {
+    border-bottom-color: #2f3646;
+}
+html[data-theme="dark"] .shift-row-default:hover { background-color: #1b2636; }
+html[data-theme="dark"] .shift-row-sunday        { background-color: #2c1e22; }
+html[data-theme="dark"] .shift-row-sunday:hover  { background-color: #47232b; }
+html[data-theme="dark"] .shift-row-saturday      { background-color: #16262c; }
+html[data-theme="dark"] .shift-row-saturday:hover{ background-color: #1c3c46; }
+html[data-theme="dark"] .text-gray-800 { color: #e5e7eb; }
+html[data-theme="dark"] .cell-hyphen,
+html[data-theme="dark"] .cell-hyphen-light {
+    color: #4b5563;
+}
+html[data-theme="dark"] .place-name-inner {
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .form-input-time-inline,
+html[data-theme="dark"] .form-select-inline {
+    background-color: #232938;
+    border-color: #3a4356;
+    color: #e5e7eb;
+}
+html[data-theme="dark"] .form-checkbox {
+    border-color: #3a4356;
+}
+html[data-theme="dark"] .floating-bulk-btn-static {
+    background-color: #171b25;
+}
+html[data-theme="dark"] .table-wrapper::-webkit-scrollbar-track {
+    background: #171b25;
+}
+html[data-theme="dark"] .table-wrapper::-webkit-scrollbar-thumb {
+    background: #4a5568;
+}

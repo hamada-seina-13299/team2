@@ -8,31 +8,23 @@ use App\Models\User;
 use App\Models\Working;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Yasumi\Yasumi;
 
 class ShiftSeeder extends Seeder
 {
     /**
-     * 「出勤・打刻データ」レポート画面の動作確認用シーダー。
-     *
-     * 【前提】
-     * ・shift_masters に最低1件あること（name / attendance / leaving / working_place など必須カラムあり）
-     * ・A・B・Cさんは users.name が 'A' / 'B' / 'C' で登録されている想定です。
-     *   実際の名前が違う場合は $abcNames を書き換えてください。
-     *
-     * 【今回の変更点】
-     * ・以前は「今日」の分もランダムだったため、たまたま3人とも同じステータス（欠勤）に
-     *   偏ってしまっていました。今回は「今日」の分だけは A・B・C で必ず別々のステータス
-     *   （出勤／遅刻／欠勤）になるよう固定し、出勤・退勤時刻もきちんと入るようにしています。
-     * ・それ以外の過去日はランダムに「出勤／遅刻／欠勤／休み」の4パターン全てが出るようにしています。
-     * ・未来日（今月の残り＋来月分）はシフト（予定）だけを作成します。まだ出勤していないので
-     *   打刻データは作りません。
-     * ・全ユーザー向けのランダムデータも、直近14日間の過去分に加えて今後14日分の未来シフトを
-     *   作成するようにしました。
-     * ・勤務地（shift_masters）もランダムに選ぶようにし、同じ人でも日によって勤務地が変わるように
-     *   しています。
-     * ・再実行しても正しく上書きされるよう、A・B・Cさんの今月〜来月分は一旦削除してから作り直します。
+     * 月に0〜1回だけ発生させる「遅刻/欠勤」の対象日をユーザーごとに保持する。
+     * [$userId => [$dateString => '遅刻'|'欠勤']]
      */
-public function run(): void
+    private array $specialPatternDates = [];
+
+    /**
+     * ユーザーごとに固定した通勤費（適当な範囲でユーザーごとに変化させる）
+     * [$userId => int]
+     */
+    private array $userCommuteFares = [];
+
+    public function run(): void
     {
         $masters = ShiftMaster::all();
 
@@ -41,9 +33,7 @@ public function run(): void
             return;
         }
 
-        // 1) 既存ユーザー全員：直近14日間のランダムデータ（重複はスキップ）
-        // ★修正：user_id = 1 (田中太郎さん/管理者) は WorkingSeeder 側で制御するため、ここでは除外する
-        $allUsers = User::where('id', '!=', 1)->get(); 
+        $allUsers = User::all();
 
         if ($allUsers->isEmpty()) {
             $this->command?->warn('users にレコードがありません。先にUserのシーダーを実行してください。');
@@ -52,41 +42,41 @@ public function run(): void
 
         $this->seedRandomRange(
             $allUsers,
-            Carbon::today()->subDays(13),
-            Carbon::today()->addDays(13),
+            Carbon::today()->subDays(40),
+            Carbon::today()->addDays(22),
             $masters
         );
-
-        // 2) A・B・Cさん：今月分を作り直す（今日は必ずステータスが分かれるようにする）
-        $abcNames = ['A', 'B', 'C'];
-        $abcUsers = User::whereIn('name', $abcNames)->get();
-
-        if ($abcUsers->isEmpty()) {
-            $this->command?->warn('A・B・Cという名前のユーザーが見つかりませんでした。users.name の値を確認し、$abcNames を実際の名前に合わせて修正してください。');
-            return;
-        }
-
-        $this->reseedAbcMonth($abcUsers, $masters);
-
-        $this->command?->info('ShiftSeeder: A・B・Cさんの今月〜来月分シフトを作り直しました（今日は出勤／遅刻／欠勤に分かれています）。');
     }
 
-    /**
-     * 既存ユーザー全員向け：指定期間（平日のみ）にランダムでシフト／打刻を作成する。
-     * ・過去日／当日：出勤・遅刻・欠勤・休みをランダムに割り振る。
-     * ・未来日：シフト（予定）のみ作成し、打刻は作らない。
-     * 既に同じユーザー・同じ日にシフトがある場合はスキップ（重複防止）。
-     */
     private function seedRandomRange($users, Carbon $start, Carbon $end, $masters): void
     {
         $today = Carbon::today();
 
+        // 遅刻/欠勤の対象日を先に決めておく（月0〜1回のペースにするため）
+        $this->specialPatternDates = $this->buildSpecialPatternDates($users, $start, $end, $today);
+
+        // user5用の状態管理
+        $user5LastMaster = null;
+        $user5SkipDays = 0;
+
         for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
-            if ($date->isWeekend()) {
-                continue;
-            }
 
             foreach ($users as $user) {
+
+                // user5以外は土日祝をスキップ
+                if (
+                    $user->id !== 5 &&
+                    ($date->isWeekend() || $this->isHoliday($date))
+                ) {
+                    continue;
+                }
+
+                // user5の休み判定
+                if ($user->id === 5 && $user5SkipDays > 0) {
+                    $user5SkipDays--;
+                    continue;
+                }
+
                 $alreadyExists = Shift::where('user_id', $user->id)
                     ->where('target_date', $date->toDateString())
                     ->exists();
@@ -96,62 +86,125 @@ public function run(): void
                 }
 
                 $isFuture = $date->gt($today);
+
+                // 未来日は必ず出勤予定。過去/当日は、あらかじめ決めておいた
+                // 「遅刻/欠勤の対象日」に該当する場合だけ遅刻/欠勤、それ以外は通常出勤。
                 $pattern = $isFuture
                     ? '出勤'
-                    : fake()->randomElement(['出勤', '出勤', '遅刻', '欠勤', '休み']);
+                    : ($this->specialPatternDates[$user->id][$date->toDateString()] ?? '出勤');
 
-                $this->createShiftAndWorking($user, $date, $pattern, $masters->random(), $isFuture);
+                switch ($user->id) {
+
+                    case 1:
+                        $master = $date->isWednesday()
+                            ? $masters->firstWhere('id', 2)
+                            : $masters->firstWhere('id', 1);
+                        break;
+
+                    case 2:
+                    case 3:
+                    case 4:
+                        $master = $masters->firstWhere('id', 4);
+                        break;
+
+                    case 6:
+                        $master = $masters->firstWhere('id', 1);
+                        break;
+
+                    case 5:
+
+                        $masterId = fake()->randomElement([1, 3]);
+
+                        if ($user5LastMaster !== null) {
+
+                            // 1→3 または 3→1
+                            if ($user5LastMaster != $masterId) {
+                                $user5SkipDays = 2;
+                            }
+                            // 3→3
+                            elseif ($masterId == 3) {
+                                $user5SkipDays = 1;
+                            }
+                        }
+
+                        $user5LastMaster = $masterId;
+                        $master = $masters->firstWhere('id', $masterId);
+                        break;
+
+                    default:
+                        $master = $masters->random();
+                        break;
+                }
+
+                $this->createShiftAndWorking(
+                    $user,
+                    $date,
+                    $pattern,
+                    $master,
+                    $isFuture
+                );
             }
         }
     }
 
     /**
-     * A・B・Cさん向け：今月〜来月分（平日のみ）を一旦削除してから作り直す。
-     * ・今日は必ずユーザーごとに異なるステータス（出勤／遅刻／欠勤）になるように固定する。
-     * ・今日より前の過去日はランダムに「出勤／遅刻／欠勤／休み」の全パターンが出るようにする。
-     * ・今日より後の未来日（来月分含む）はシフト（予定）のみ作成し、打刻は作らない。
+     * ユーザーごとに、月0〜1回のペースで「遅刻」または「欠勤」になる日をあらかじめ決めておく。
+     * ・対象は過去〜当日まで（未来日は常に出勤なので対象外）
+     * ・その人が実際に働く日（土日祝を除く）の中からランダムに1日だけ選ぶ
+     * ・user5は打刻修正モーダルのSKIPロジックと絡めると複雑になるため、いったん対象外にしている
+     *   （必要であれば同じ考え方で対応可能）
      */
-    private function reseedAbcMonth($users, $masters): void
+    private function buildSpecialPatternDates($users, Carbon $start, Carbon $end, Carbon $today): array
     {
-        $today = Carbon::today();
-        $monthStart = Carbon::today()->startOfMonth();
-        // 今月末だけでなく来月末まで、未来のシフト（予定）も作成する
-        $monthEnd = Carbon::today()->addMonthNoOverflow()->endOfMonth();
-        $userIds = $users->pluck('id');
+        $result = [];
 
-        // 再実行しても内容が上書きされるよう、今月分は一旦削除する
-        Working::whereIn('user_id', $userIds)
-            ->whereBetween('punch_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-            ->delete();
+        // 過去/当日の範囲だけが対象（未来日は常に出勤なので特別扱い不要）
+        $rangeEnd = $end->greaterThan($today) ? $today->copy() : $end->copy();
 
-        Shift::whereIn('user_id', $userIds)
-            ->whereBetween('target_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-            ->delete();
+        foreach ($users as $user) {
+            if ($user->id === 5) {
+                continue;
+            }
 
-        // 「今日」は必ず全員別々のステータスになるようにする
-        $todayPatternCycle = ['出勤', '遅刻', '欠勤'];
-        $randomPatternCycle = ['出勤', '遅刻', '欠勤', '休み'];
+            $result[$user->id] = [];
 
-        foreach ($users as $userIndex => $user) {
-            for ($date = $monthStart->copy(); $date->lte($monthEnd); $date->addDay()) {
-                if ($date->isWeekend()) {
-                    continue;
+            $monthCursor = $start->copy()->startOfMonth();
+
+            while ($monthCursor->lte($rangeEnd)) {
+
+                $monthStart = $monthCursor->copy();
+                if ($monthStart->lt($start)) {
+                    $monthStart = $start->copy();
                 }
 
-                $isFuture = $date->gt($today);
-                $isToday = $date->equalTo($today);
-
-                if ($isFuture) {
-                    $pattern = '出勤';
-                } elseif ($isToday) {
-                    $pattern = $todayPatternCycle[$userIndex % count($todayPatternCycle)];
-                } else {
-                    $pattern = fake()->randomElement($randomPatternCycle);
+                $monthEnd = $monthCursor->copy()->endOfMonth();
+                if ($monthEnd->gt($rangeEnd)) {
+                    $monthEnd = $rangeEnd->copy();
                 }
 
-                $this->createShiftAndWorking($user, $date, $pattern, $masters->random(), $isFuture);
+                if ($monthStart->lte($monthEnd)) {
+                    // その月に遅刻/欠勤を発生させるかどうか（0〜1回/月のイメージで50%の確率にしている）
+                    if (fake()->boolean(50)) {
+                        $candidateDates = [];
+
+                        for ($d = $monthStart->copy(); $d->lte($monthEnd); $d->addDay()) {
+                            if (!$d->isWeekend() && !$this->isHoliday($d)) {
+                                $candidateDates[] = $d->toDateString();
+                            }
+                        }
+
+                        if (!empty($candidateDates)) {
+                            $targetDate = fake()->randomElement($candidateDates);
+                            $result[$user->id][$targetDate] = fake()->randomElement(['遅刻', '欠勤']);
+                        }
+                    }
+                }
+
+                $monthCursor->addMonth();
             }
         }
+
+        return $result;
     }
 
     /**
@@ -159,25 +212,18 @@ public function run(): void
      */
     private function createShiftAndWorking(User $user, Carbon $date, string $pattern, ShiftMaster $master, bool $isFuture): void
     {
-        if ($pattern === '休み') {
-            // シフト自体を作らない → resolveAttendanceStatus() が「休み」と判定する
-            return;
-        }
-
         $shift = Shift::create([
             'user_id' => $user->id,
             'master_id' => $master->id,
             'target_date' => $date->toDateString(),
-            'status' => '承認済み',
+            'status' => '承認',
         ]);
 
-        // 未来日は打刻データを作らない（まだ出勤していないため）
         if ($isFuture) {
             return;
         }
 
         if ($pattern === '欠勤') {
-            // シフトはあるが打刻なし（過去日／当日なので「欠勤」判定になる）
             return;
         }
 
@@ -188,17 +234,46 @@ public function run(): void
         $leavingTime = Carbon::parse($scheduledLeaving);
 
         if ($pattern === '遅刻') {
-            // 予定より15〜45分遅く打刻
+            // 遅刻：予定より15〜45分遅く打刻
             $attendanceTime->addMinutes(fake()->numberBetween(15, 45));
+        } else {
+            // 実績データに少しブレを出すためのランダム値
+            $randomMinuteIn = fake()->numberBetween(-25, -5); // 9:00出勤だとしたら8:35〜8:55
+            $attendanceTime->addMinutes($randomMinuteIn);
         }
+
+        // 退勤側のブレは、通常/遅刻どちらの日にも一律で付与する
+        $randomMinuteOut = fake()->numberBetween(0, 15); // 17:30退勤だとしたら17:30〜17:45
+        $leavingTime->addMinutes($randomMinuteOut);
 
         Working::create([
             'user_id' => $user->id,
             'punch_date' => $date->toDateString(),
             'attendance' => $attendanceTime->format('H:i:s'),
             'leaving' => $leavingTime->format('H:i:s'),
-            'working_place' => $master->working_place,
-            'status' => $pattern,
+            'commute' => $this->commuteFor($user),
+            'status' => '未申請',
         ]);
+    }
+
+    /**
+     * ユーザーごとに適当な通勤費を割り当てる（初回だけ決めて、以降は同じ人には同じ額を使い回す）。
+     */
+    private function commuteFor(User $user): int
+    {
+        if (!isset($this->userCommuteFares[$user->id])) {
+            $this->userCommuteFares[$user->id] = fake()->randomElement(
+                [150, 180, 210, 260, 320, 400, 480, 550, 620, 780, 900]
+            );
+        }
+
+        return $this->userCommuteFares[$user->id];
+    }
+
+    private function isHoliday(Carbon $date): bool
+    {
+        $holidays = Yasumi::create('Japan', $date->year);
+
+        return $holidays->isHoliday($date);
     }
 }
