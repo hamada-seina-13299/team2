@@ -5,8 +5,18 @@
 .user-dept { font-size: 13px; color: #777; }
 .attendance-header { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 8px; }
 .month-title { font-size: 20px; font-weight: 700; margin: 0; }
-.month-nav-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #f1f1f1; color: #333; text-decoration: none; font-size: 14px; }
-.month-nav-btn:hover { background: #e0e0e0; }
+.month-nav-btn {
+  font-size: 24px;         /* 少し大きくして視認性を確保 */
+  color: #555;             /* 少し濃いグレーで落ち着かせる */
+  text-decoration: none;   /* 下線を消す */
+  cursor: pointer;
+  transition: color 0.2s;  /* 色が変わるのをなめらかにする */
+  padding: 0 10px;         /* 押しやすさのために余白だけ残す */
+}
+
+.month-nav-btn:hover {
+  color: #3498db;          /* マウスを乗せると青っぽくして反応を示す */
+}
 .alert-success { background: #e6f7ee; color: #1a7f4f; border: 1px solid #b7e4c9; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; }
 .summary-card { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); padding: 16px 18px; margin-bottom: 16px; }
 .summary-title { font-weight: 700; font-size: 14px; margin-bottom: 12px; }
@@ -125,33 +135,39 @@
     box-shadow: none;
 }
 
-/* ーーー 参考画面（image_c0e201.png）再現用スタイル ーーー */
-.dashboard-modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
-.dashboard-modal-box { background: #ffffff; border-radius: 12px; width: 100%; max-width: 920px; padding: 24px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12); box-sizing: border-box; position: relative; border: 1px solid #cbd5e0; }
-.dashboard-date-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 2px solid #12b3ab; padding-bottom: 12px; }
-.dashboard-nav-btn { background: #fff; border: 1px solid #12b3ab; color: #12b3ab; border-radius: 6px; padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-.dashboard-nav-btn:hover { background: #eef7f6; }
-.dashboard-nav-btn:disabled { border-color: #e2e8f0; color: #cbd5e0; cursor: not-allowed; background: #fafafa; }
-.dashboard-date-title { font-size: 18px; font-weight: 700; color: #2d3748; display: flex; align-items: center; gap: 6px; }
-.dashboard-stamp-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 13px; }
-.dashboard-stamp-table th { background: #eef8f8; color: #12b3ab; font-weight: 700; padding: 12px; border: 1px solid #dceeed; text-align: left; }
-.dashboard-stamp-table td { padding: 10px 12px; border: 1px solid #e2e8f0; vertical-align: middle; background: #fff; color: #333; }
-.dashboard-type-label { font-weight: 700; font-size: 14px; text-align: center; width: 100px; }
-.dashboard-input-time { border: 1px solid #cbd5e0; border-radius: 6px; padding: 8px 12px; font-size: 14px; color: #333; width: 150px; box-sizing: border-box; text-align: center; }
-.dashboard-input-text { border: 1px solid #cbd5e0; border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #333; width: 100%; box-sizing: border-box; }
-.dashboard-input-time:focus, .dashboard-input-text:focus { outline: none; border-color: #12b3ab; box-shadow: 0 0 0 2px rgba(18, 179, 171, 0.1); }
-.dashboard-center-text { text-align: center; width: 60px; }
-.dashboard-center-text input[type="checkbox"] { transform: scale(1.2); cursor: pointer; }
-.dashboard-btn-add { background: #fff; border: 1px solid #12b3ab; color: #12b3ab; border-radius: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 24px; }
-.dashboard-btn-add:hover { background: #eef7f6; }
-.dashboard-history-section { margin-top: 12px; margin-bottom: 24px; }
-.dashboard-history-title { font-size: 14px; font-weight: 700; color: #12b3ab; margin-bottom: 12px; text-decoration: underline; text-underline-offset: 4px; }
-.dashboard-history-table { width: 100%; border-collapse: collapse; font-size: 12px; border-top: 1px solid #e2e8f0; }
-.dashboard-history-table th { background: #eef8f8; color: #12b3ab; font-weight: 600; padding: 10px; border: 1px solid #e2e8f0; text-align: left; }
-.dashboard-history-table td { padding: 12px 10px; border: 1px solid #e2e8f0; color: #4a5568; }
-.dashboard-no-data { text-align: center; color: #a0aec0; padding: 24px !important; background: #fff; }
-.dashboard-footer-actions { display: flex; justify-content: center; gap: 16px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
-.dashboard-btn-close { background: #ffffff; color: #12b3ab; border: 1px solid #12b3ab; border-radius: 6px; padding: 10px 40px; font-size: 14px; font-weight: 600; cursor: pointer; min-width: 120px; transition: background 0.2s; }
-.dashboard-btn-close:hover { background: #eef7f6; }
-.dashboard-btn-submit { background: #12b3ab; color: #ffffff; border: none; border-radius: 6px; padding: 10px 40px; font-size: 14px; font-weight: 600; cursor: pointer; min-width: 120px; transition: background 0.2s; }
-.dashboard-btn-submit:hover { background: #0f9a92; }
+/* 背景全体を青空にする */
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: linear-gradient(to bottom, #87CEEB, #E0F7FA);
+}
+
+/* 雲を動かすコンテナ */
+.sky-background {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100vh;
+    z-index: -10;
+    overflow: hidden; /* 画面外の雲は見せない */
+    pointer-events: none;
+}
+
+.cloud {
+    position: absolute;
+    background: white;
+    filter: blur(50px);
+    border-radius: 50%;
+    opacity: 0.7;
+    animation: drift 200s linear infinite;
+    width: 300px;
+    height: 150px;
+}
+
+/* 複数の雲をバラバラに動かすための定義 */
+.cloud-1 { top: 10%; left: -300px; animation-duration: 150s; }
+.cloud-2 { top: 40%; left: -400px; animation-duration: 250s; width: 400px; height: 200px; }
+.cloud-3 { top: 70%; left: -200px; animation-duration: 180s; width: 250px; height: 120px; }
+
+@keyframes drift {
+    0% { transform: translateX(-500px); }
+    100% { transform: translateX(100vw); }
+}

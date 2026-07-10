@@ -1,27 +1,28 @@
 @extends('layouts.app')
 
 @push('styles')
-    @vite('resources/css/attendance.css')
+@vite('resources/css/attendance.css')
 @endpush
 
 @section('content')
+
+{{-- 雲を動かすための親要素 --}}
+<div class="sky-background">
+    {{-- 速度をそれぞれ変える（秒数が大きいほどゆっくり） --}}
+    <div class="cloud cloud-1" style="animation-duration: 250s;"></div>
+    <div class="cloud cloud-2" style="animation-duration: 350s;"></div>
+    <div class="cloud cloud-3" style="animation-duration: 180s;"></div>
+</div>
+
 <div class="attendance-page">
 
     {{-- アプリケーション風の綺麗なモダン通知を表示するエリア --}}
-    <div id="custom-toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: none; background: #e74c3c; color: #fff; padding: 12px 24px; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: fade-in-toast 0.3s ease;"></div>
+    <div id="custom-toast-container" style="position: fixed; top: 90px; right: 20px; z-index: 9999; display: none; background: #e74c3c; color: #fff; padding: 12px 24px; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: fade-in-toast 0.3s ease;"></div>
 
     {{-- JavaScript用の設定データを隠し要素として配置 --}}
     <input type="hidden" id="csrf-token-meta" value="{{ csrf_token() }}">
     <input type="hidden" id="check-late-url-meta" value="{{ route('attendance.check-late') }}">
     <input type="hidden" id="attendance-url-base-meta" value="{{ url('attendance') }}">
-
-    {{-- ユーザー情報 --}}
-    <div class="user-info">
-        <span class="user-name">{{ $user->name }}</span>
-        @if ($user->dept)
-        <span class="user-dept">{{ $user->dept }}</span>
-        @endif
-    </div>
 
     {{-- 月切替ヘッダー --}}
     <div class="attendance-header">
@@ -112,7 +113,8 @@
                             <th>操作</th>
                             <th>出勤</th>
                             <th>退勤</th>
-                            <th>休憩</th>
+                            <th>休憩開始</th>
+                            <th>休憩終了</th>
                             <th>勤務地</th>
                             <th>交通費</th>
                         </tr>
@@ -164,6 +166,12 @@
                         }
                         $displayLeaving = $leavTime->format('H:i');
                         }
+                        $breakStart = null; $breakEnd = null; $breakDurationMinutes = null;
+                        if ($w && $w->leaving && $master && $master->break_start_time && $master->break_time) {
+                        $breakStart = \Carbon\Carbon::parse($master->break_start_time);
+                        $breakDurationMinutes = \Carbon\Carbon::parse('00:00')->diffInMinutes(\Carbon\Carbon::parse($master->break_time));
+                        $breakEnd = $breakStart->copy()->addMinutes($breakDurationMinutes);
+                        }
                         @endphp
                         <tr class="{{ $rowClass }}">
                             <td class="col-date">
@@ -181,6 +189,13 @@
                                         data-break="{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}">
                                         🕒
                                     </button>
+                                    <button type="button" class="custom-stamp-edit-btn js-stamp-edit-btn"
+                                        data-date="{{ $date->format('Y-m-d') }}"
+                                        data-attendance="{{ $w && $w->attendance ? \Carbon\Carbon::parse($w->attendance)->format('H:i') : '' }}"
+                                        data-leaving="{{ $w && $w->leaving ? \Carbon\Carbon::parse($w->leaving)->format('H:i') : '' }}"
+                                        data-break="{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}">
+                                        ✏️
+                                    </button>
                                 </div>
                             </td>
                             <td>
@@ -195,7 +210,8 @@
                                 @endif
                                 {{ $displayLeaving }}
                             </td>
-                            <td>{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}</td>
+                            <td>{{ $breakStart ? $breakStart->format('H:i') : '' }}</td>
+                            <td>{{ $breakEnd ? $breakEnd->format('H:i') : '' }}</td>
                             <td>{{ $master->working_place ?? '' }}</td>
                             <td>{{ $w && $w->commute ? number_format($w->commute) . '円' : '' }}</td>
                         </tr>
@@ -273,7 +289,7 @@
                         }
                         @endphp
                         <tr class="{{ $rowClass }}">
-                            <td class="col-date">{{ $date->format('n月j日') }}</td>
+                            <td class="col-date">{{ $date->format('n月j日') }}（{{ ['日','月','火','水','木','金','土'][$date->dayOfWeek] }}）</td>
                             <td>{{ $dayType }}</td>
                             <td>
                                 <div class="action-buttons-cell" style="display: flex; gap: 6px; align-items: center;">
@@ -283,6 +299,13 @@
                                         data-leaving="{{ $w && $w->leaving ? \Carbon\Carbon::parse($w->leaving)->format('H:i') : '' }}"
                                         data-break="{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}">
                                         🕒
+                                    </button>
+                                    <button type="button" class="custom-stamp-edit-btn js-stamp-edit-btn"
+                                        data-date="{{ $date->format('Y-m-d') }}"
+                                        data-attendance="{{ $w && $w->attendance ? \Carbon\Carbon::parse($w->attendance)->format('H:i') : '' }}"
+                                        data-leaving="{{ $w && $w->leaving ? \Carbon\Carbon::parse($w->leaving)->format('H:i') : '' }}"
+                                        data-break="{{ $w && $w->break_time ? \Carbon\Carbon::parse($w->break_time)->format('H:i') : '' }}">
+                                        ✏️
                                     </button>
 
                                     @if($requests->count() > 0)
@@ -330,25 +353,25 @@
         {{-- 🌟 フォームを非表示化し、ボタンを完全外出しにした申請ボタンエリア --}}
         <div class="attendance-card-footer-action" id="monthly-action-container">
             @if (($summary['monthly_status'] ?? '未申請') === '未申請')
-                @if ($summary['can_submit'] ?? false)
-                    {{-- フォームはデータの入れ物として別出し、画面には絶対映さない --}}
-                    <form id="monthly-submit-form" action="{{ route('attendance.submit') }}" method="POST" class="inline-form" style="display:none;">
-                        @csrf
-                        <input type="hidden" name="year" value="{{ $currentMonth->year }}">
-                        <input type="hidden" name="month" value="{{ $currentMonth->month }}">
-                    </form>
-                    {{-- ボタン単体。これで不具合を100%物理回避 --}}
-                    <button type="button" class="btn-large-action btn-submit-active" id="js-trigger-submit">申請する</button>
-                @endif
+            @if ($summary['can_submit'] ?? false)
+            {{-- フォームはデータの入れ物として別出し、画面には絶対映さない --}}
+            <form id="monthly-submit-form" action="{{ route('attendance.submit') }}" method="POST" class="inline-form" style="display:none;">
+                @csrf
+                <input type="hidden" name="year" value="{{ $currentMonth->year }}">
+                <input type="hidden" name="month" value="{{ $currentMonth->month }}">
+            </form>
+            {{-- ボタン単体。これで不具合を100%物理回避 --}}
+            <button type="button" class="btn-large-action btn-submit-active" id="js-trigger-submit">申請する</button>
+            @endif
             @elseif (($summary['monthly_status'] ?? '') === '申請済み')
-                <form id="monthly-cancel-form" action="{{ route('attendance.cancel') }}" method="POST" class="inline-form" style="display:none;">
-                    @csrf
-                    <input type="hidden" name="year" value="{{ $currentMonth->year }}">
-                    <input type="hidden" name="month" value="{{ $currentMonth->month }}">
-                </form>
-                <button type="button" class="btn-large-action btn-submit-cancel" id="js-trigger-cancel">提出取り下げ</button>
+            <form id="monthly-cancel-form" action="{{ route('attendance.cancel') }}" method="POST" class="inline-form" style="display:none;">
+                @csrf
+                <input type="hidden" name="year" value="{{ $currentMonth->year }}">
+                <input type="hidden" name="month" value="{{ $currentMonth->month }}">
+            </form>
+            <button type="button" class="btn-large-action btn-submit-cancel" id="js-trigger-cancel">提出取り下げ</button>
             @elseif (($summary['monthly_status'] ?? '') === '承認')
-                <button type="button" class="btn-large-action btn-submit-disabled" disabled>承認済みの勤務表</button>
+            <button type="button" class="btn-large-action btn-submit-disabled" disabled>承認済みの勤務表</button>
             @endif
         </div>
     </div>
