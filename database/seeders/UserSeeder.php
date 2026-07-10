@@ -16,7 +16,7 @@ class UserSeeder extends Seeder
     {
         User::insert([
         [
-            'name' => 'TestUser',
+            'name' => '上野権蔵',
             'email' => 'test@example.com',
             'password' => Hash::make('password'),
             'dept' => '開発部',
@@ -59,7 +59,7 @@ class UserSeeder extends Seeder
             'updated_at' => now(),
             ],
             [
-            'name' => '永山喜一',
+            'name' => '野錦努',
             'email' => 'c@gmail.com',
             'password' => Hash::make('password'),
             'dept' => '開発部',
@@ -70,7 +70,7 @@ class UserSeeder extends Seeder
             'updated_at' => now(),
             ],
             [
-            'name' => '営業部の人',
+            'name' => '営業',
             'email' => 'd@gmail.com',
             'password' => Hash::make('password'),
             'dept' => '営業部',
